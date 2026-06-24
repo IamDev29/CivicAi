@@ -30,6 +30,8 @@ import ProfileView from './components/ProfileView';
 import OnboardingModal from './components/OnboardingModal';
 import CivicBot from './components/CivicBot';
 import DemoTour from './components/DemoTour';
+import LandingPage from './components/LandingPage';
+import AuthFlow from './components/AuthFlow';
 import { APIProvider } from '@vis.gl/react-google-maps';
 
 const API_KEY =
@@ -40,11 +42,87 @@ const API_KEY =
 const hasValidKey = Boolean(API_KEY) && API_KEY !== 'YOUR_API_KEY';
 
 export default function App() {
+  const [currentUser, setCurrentUser] = useState<{ name: string; ward: string; role: string; points: number; badges: string[] } | null>(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const stored = localStorage.getItem('civic_current_user');
+      if (stored) {
+        try {
+          return JSON.parse(stored);
+        } catch (e) {
+          return null;
+        }
+      }
+    }
+    return null;
+  });
+
   const [activeTab, setActiveTab] = useState<string>('Report');
   const [demoMode, setDemoMode] = useState<boolean>(false);
+  const [showLanding, setShowLanding] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return !localStorage.getItem('civic_current_user');
+    }
+    return true;
+  });
   const [issues, setIssues] = useState<CivicIssue[]>(INITIAL_ISSUES);
-  const [userStats, setUserStats] = useState<UserStats>(MOCK_USER_STATS);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>(MOCK_LEADERBOARD);
+  
+  const [userStats, setUserStats] = useState<UserStats>(() => {
+    const defaultStats = { ...MOCK_USER_STATS };
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const stored = localStorage.getItem('civic_current_user');
+      if (stored) {
+        try {
+          const user = JSON.parse(stored);
+          return {
+            name: user.name,
+            points: user.points || 0,
+            badge: user.points >= 500 ? 'Active Citizen ⭐' : 'Initiate Citizen 🌱',
+            rank: user.role === 'authority' ? 1 : 10,
+            reportsCount: user.role === 'authority' ? 24 : 0,
+            resolvedCount: user.role === 'authority' ? 18 : 0,
+            level: Math.floor((user.points || 0) / 200) + 1,
+            upvotesGiven: 0,
+            badges: user.badges || []
+          };
+        } catch (e) {
+          // fallback
+        }
+      }
+    }
+    return defaultStats;
+  });
+
+  const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>(() => {
+    let list = [...MOCK_LEADERBOARD];
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const stored = localStorage.getItem('civic_current_user');
+      if (stored) {
+        try {
+          const user = JSON.parse(stored);
+          const userNameLabel = `You (${user.name})`;
+          list = list.map(u => {
+            if (u.isCurrentUser) {
+              return {
+                ...u,
+                name: userNameLabel,
+                points: user.points || 0,
+                badge: user.points >= 500 ? 'Active Citizen ⭐' : 'Initiate Citizen 🌱'
+              };
+            }
+            return u;
+          });
+        } catch (e) {
+          // fallback
+        }
+      }
+    }
+    return list;
+  });
+
+  const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [authInitialRole, setAuthInitialRole] = useState<'citizen' | 'official' | null>(null);
+  
+  const currentReporterName = 'You (' + (currentUser?.name || 'Ankit Kumar') + ')';
   
   const [showOnboarding, setShowOnboarding] = useState<boolean>(() => {
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -160,7 +238,7 @@ export default function App() {
         upvotes: 0,
         status: 'Open',
         date: new Date().toISOString().split('T')[0],
-        reporterName: 'You (Ankit Kumar)',
+        reporterName: currentReporterName,
         comments: []
       };
 
@@ -310,6 +388,52 @@ export default function App() {
     }
   };
 
+  const handleAuthSuccess = (user: { name: string; ward: string; role: string; points: number; badges: string[] }) => {
+    setCurrentUser(user);
+    setShowAuthModal(false);
+    setShowLanding(false);
+    
+    setUserStats({
+      name: user.name,
+      points: user.points || 0,
+      badge: user.points >= 500 ? 'Active Citizen ⭐' : 'Initiate Citizen 🌱',
+      rank: user.role === 'authority' ? 1 : 10,
+      reportsCount: user.role === 'authority' ? 24 : 0,
+      resolvedCount: user.role === 'authority' ? 18 : 0,
+      level: Math.floor((user.points || 0) / 200) + 1,
+      upvotesGiven: 0,
+      badges: user.badges || []
+    });
+
+    setLeaderboard(lead => {
+      return lead.map(u => {
+        if (u.isCurrentUser) {
+          return {
+            ...u,
+            name: `You (${user.name})`,
+            points: user.points || 0,
+            badge: user.points >= 500 ? 'Active Citizen ⭐' : 'Initiate Citizen 🌱'
+          };
+        }
+        return u;
+      });
+    });
+
+    if (user.role === 'authority') {
+      setActiveTab('Dashboard');
+      triggerAlert(`Welcome, Officer ${user.name}! Connected to BMC portal 🏛️`);
+    } else {
+      setActiveTab('Report');
+      triggerAlert(`Welcome, ${user.name}! You're reporting for ${user.ward} 📍`);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('civic_current_user');
+    setCurrentUser(null);
+    setShowLanding(true);
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center py-0 md:py-6 px-0 md:px-4 font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
       {!hasValidKey ? (
@@ -361,210 +485,237 @@ export default function App() {
           */}
           <div className="w-full max-w-md md:rounded-[40px] md:shadow-2xl md:border-[12px] md:border-gray-900 overflow-hidden bg-white flex flex-col h-screen md:h-[840px] relative">
             
-            {/* Sticky Header */}
-            <Header demoMode={demoMode} setDemoMode={setDemoMode} />
+            {showLanding ? (
+              <LandingPage 
+                onStartReporting={() => {
+                  setAuthInitialRole(null);
+                  setShowAuthModal(true);
+                }}
+                onAuthorityLogin={() => {
+                  setAuthInitialRole('official');
+                  setShowAuthModal(true);
+                }}
+              />
+            ) : (
+              <>
+                {/* Sticky Header */}
+                <Header demoMode={demoMode} setDemoMode={setDemoMode} />
 
-            {/* Guided Tour Controls & Highlights */}
-            <DemoTour 
-              demoMode={demoMode} 
-              setDemoMode={setDemoMode} 
-              activeTab={activeTab} 
-              setActiveTab={setActiveTab} 
-            />
+                {/* Guided Tour Controls & Highlights */}
+                <DemoTour 
+                  demoMode={demoMode} 
+                  setDemoMode={setDemoMode} 
+                  activeTab={activeTab} 
+                  setActiveTab={setActiveTab} 
+                />
 
-            {/* Onboarding Screen for First-Time Users */}
+                {/* Onboarding Screen for First-Time Users */}
+                <AnimatePresence>
+                  {showOnboarding && (
+                    <OnboardingModal 
+                      onComplete={() => {
+                        localStorage.setItem('civic_onboarding_completed', 'true');
+                        setShowOnboarding(false);
+                      }}
+                    />
+                  )}
+                </AnimatePresence>
+
+                {/* Gamification Indicator Strip */}
+                <GamificationStrip 
+                  points={userStats.points}
+                  badge={userStats.badge}
+                  rank={userStats.rank}
+                  level={userStats.level}
+                  pointsToNextLevel={200}
+                />
+
+                {/* Real-time Popup alert for point bonuses */}
+                <AnimatePresence>
+                  {alertMessage && (
+                    <motion.div
+                      initial={{ y: -30, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      exit={{ y: -30, opacity: 0 }}
+                      className="absolute top-36 left-4 right-4 bg-gray-900 text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-lg z-50 flex items-center justify-between border border-gray-800"
+                    >
+                      <span>{alertMessage}</span>
+                      <Sparkles className="w-4 h-4 text-amber-400 fill-amber-400" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Level Up Celebration Screen Overlay */}
+                <AnimatePresence>
+                  {showLevelUp && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 bg-black/80 z-50 flex flex-col justify-center items-center text-white p-6"
+                    >
+                      <motion.div
+                        initial={{ scale: 0.8, y: 50 }}
+                        animate={{ scale: 1, y: 0 }}
+                        className="bg-white text-gray-950 p-6 rounded-3xl text-center space-y-6 max-w-xs shadow-2xl relative overflow-hidden"
+                      >
+                        {/* Decorative confetti particles */}
+                        <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-yellow-400 via-pink-500 to-blue-500"></div>
+
+                        <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto text-3xl font-bold animate-bounce">
+                          👑
+                        </div>
+
+                        <div className="space-y-1">
+                          <p className="text-[10px] text-amber-600 font-extrabold uppercase tracking-widest">Congratulations!</p>
+                          <h3 className="text-xl font-black">Level Up Reached!</h3>
+                          <p className="text-sm font-extrabold text-blue-600">You are now Level {userStats.level}</p>
+                        </div>
+
+                        <p className="text-xs text-gray-500 leading-normal">
+                          Thank you for keeping Bhubaneswar's streets secure and validating community hazards. You have unlocked new municipal priorities!
+                        </p>
+
+                        <button
+                          onClick={() => setShowLevelUp(false)}
+                          className="w-full bg-[#1a73e8] hover:bg-[#1557b0] text-white py-2.5 rounded-xl text-xs font-bold transition shadow-md"
+                        >
+                          Awesome, Continue
+                        </button>
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Main Content Area (Scrollable Section) */}
+                <main className="flex-1 overflow-y-auto p-4 bg-[#f8f9fa] relative scrollbar-none pb-20">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={activeTab}
+                      initial={{ opacity: 0, x: 5 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -5 }}
+                      transition={{ duration: 0.15 }}
+                      className="h-full"
+                    >
+                      {activeTab === 'Report' && (
+                        <ReportForm 
+                          onSubmitIssue={handleSubmitIssue}
+                          onAddPoints={handleAddPoints}
+                          issues={issues}
+                        />
+                      )}
+
+                      {activeTab === 'Map' && (
+                        <InteractiveMap 
+                          issues={issues}
+                          onUpvoteIssue={handleUpvoteIssue}
+                          onSelectIssue={handleSelectIssueFromMap}
+                        />
+                      )}
+
+                      {activeTab === 'Dashboard' && (
+                        <IssuesFeed 
+                          issues={issues}
+                          onUpvoteIssue={handleUpvoteIssue}
+                          onAddComment={handleAddComment}
+                          selectedIssueFromMap={selectedIssueFromMap}
+                          clearSelectedIssueFromMap={() => setSelectedIssueFromMap(null)}
+                          onResolveIssue={handleResolveIssue}
+                          onVerifyResolution={handleVerifyResolution}
+                        />
+                      )}
+
+                      {activeTab === 'Profile' && (
+                        <ProfileView 
+                          userStats={userStats}
+                          leaderboard={leaderboard}
+                          userIssues={issues.filter(i => i.reporterName === currentReporterName)}
+                          onSelectIssue={handleSelectIssueFromMap}
+                          onSwitchTab={setActiveTab}
+                          onLogout={handleLogout}
+                        />
+                      )}
+                    </motion.div>
+                  </AnimatePresence>
+
+
+                </main>
+
+                {/* CivicBot Floating Chat Assistant */}
+                <CivicBot issues={issues} />
+
+                {/* 
+                  Sticky Bottom Navigation Bar 
+                  With 4 Tabs: Report, Map, Dashboard, Profile
+                */}
+                <nav className="absolute bottom-0 inset-x-0 bg-white border-t border-gray-200 px-4 py-2.5 flex justify-around items-center z-40 shadow-lg">
+                  <button
+                    onClick={() => {
+                      setActiveTab('Report');
+                      setSelectedIssueFromMap(null);
+                    }}
+                    id="tab-button-report"
+                    className={`flex flex-col items-center space-y-1 transition-all ${
+                      activeTab === 'Report' ? 'text-[#1a73e8] scale-105' : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                  >
+                    <AlertTriangle className={`w-5.5 h-5.5 ${activeTab === 'Report' ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+                    <span className="text-[10px] font-bold">Report</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setActiveTab('Map');
+                      setSelectedIssueFromMap(null);
+                    }}
+                    id="tab-button-map"
+                    className={`flex flex-col items-center space-y-1 transition-all ${
+                      activeTab === 'Map' ? 'text-[#1a73e8] scale-105' : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                  >
+                    <Compass className={`w-5.5 h-5.5 ${activeTab === 'Map' ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+                    <span className="text-[10px] font-bold">Map</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('Dashboard')}
+                    id="tab-button-dashboard"
+                    className={`flex flex-col items-center space-y-1 transition-all ${
+                      activeTab === 'Dashboard' ? 'text-[#1a73e8] scale-105' : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                  >
+                    <Layers className={`w-5.5 h-5.5 ${activeTab === 'Dashboard' ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+                    <span className="text-[10px] font-bold">Feed</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setActiveTab('Profile');
+                      setSelectedIssueFromMap(null);
+                    }}
+                    id="tab-button-profile"
+                    className={`flex flex-col items-center space-y-1 transition-all ${
+                      activeTab === 'Profile' ? 'text-[#1a73e8] scale-105' : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                  >
+                    <User className={`w-5.5 h-5.5 ${activeTab === 'Profile' ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+                    <span className="text-[10px] font-bold">Profile</span>
+                  </button>
+                </nav>
+              </>
+            )}
+
+            {/* Secure Authentication Portal Overlay */}
             <AnimatePresence>
-              {showOnboarding && (
-                <OnboardingModal 
-                  onComplete={() => {
-                    localStorage.setItem('civic_onboarding_completed', 'true');
-                    setShowOnboarding(false);
-                  }}
+              {showAuthModal && (
+                <AuthFlow 
+                  initialRole={authInitialRole}
+                  onAuthSuccess={handleAuthSuccess}
+                  onClose={() => setShowAuthModal(false)}
                 />
               )}
             </AnimatePresence>
-
-            {/* Gamification Indicator Strip */}
-            <GamificationStrip 
-              points={userStats.points}
-              badge={userStats.badge}
-              rank={userStats.rank}
-              level={userStats.level}
-              pointsToNextLevel={200}
-            />
-
-            {/* Real-time Popup alert for point bonuses */}
-            <AnimatePresence>
-              {alertMessage && (
-                <motion.div
-                  initial={{ y: -30, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  exit={{ y: -30, opacity: 0 }}
-                  className="absolute top-36 left-4 right-4 bg-gray-900 text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-lg z-50 flex items-center justify-between border border-gray-800"
-                >
-                  <span>{alertMessage}</span>
-                  <Sparkles className="w-4 h-4 text-amber-400 fill-amber-400" />
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Level Up Celebration Screen Overlay */}
-            <AnimatePresence>
-              {showLevelUp && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="absolute inset-0 bg-black/80 z-50 flex flex-col justify-center items-center text-white p-6"
-                >
-                  <motion.div
-                    initial={{ scale: 0.8, y: 50 }}
-                    animate={{ scale: 1, y: 0 }}
-                    className="bg-white text-gray-950 p-6 rounded-3xl text-center space-y-6 max-w-xs shadow-2xl relative overflow-hidden"
-                  >
-                    {/* Decorative confetti particles */}
-                    <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-yellow-400 via-pink-500 to-blue-500"></div>
-
-                    <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto text-3xl font-bold animate-bounce">
-                      👑
-                    </div>
-
-                    <div className="space-y-1">
-                      <p className="text-[10px] text-amber-600 font-extrabold uppercase tracking-widest">Congratulations!</p>
-                      <h3 className="text-xl font-black">Level Up Reached!</h3>
-                      <p className="text-sm font-extrabold text-blue-600">You are now Level {userStats.level}</p>
-                    </div>
-
-                    <p className="text-xs text-gray-500 leading-normal">
-                      Thank you for keeping Bhubaneswar's streets secure and validating community hazards. You have unlocked new municipal priorities!
-                    </p>
-
-                    <button
-                      onClick={() => setShowLevelUp(false)}
-                      className="w-full bg-[#1a73e8] hover:bg-[#1557b0] text-white py-2.5 rounded-xl text-xs font-bold transition shadow-md"
-                    >
-                      Awesome, Continue
-                    </button>
-                  </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Main Content Area (Scrollable Section) */}
-            <main className="flex-1 overflow-y-auto p-4 bg-[#f8f9fa] relative scrollbar-none pb-20">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={activeTab}
-                  initial={{ opacity: 0, x: 5 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -5 }}
-                  transition={{ duration: 0.15 }}
-                  className="h-full"
-                >
-                  {activeTab === 'Report' && (
-                    <ReportForm 
-                      onSubmitIssue={handleSubmitIssue}
-                      onAddPoints={handleAddPoints}
-                      issues={issues}
-                    />
-                  )}
-
-                  {activeTab === 'Map' && (
-                    <InteractiveMap 
-                      issues={issues}
-                      onUpvoteIssue={handleUpvoteIssue}
-                      onSelectIssue={handleSelectIssueFromMap}
-                    />
-                  )}
-
-                  {activeTab === 'Dashboard' && (
-                    <IssuesFeed 
-                      issues={issues}
-                      onUpvoteIssue={handleUpvoteIssue}
-                      onAddComment={handleAddComment}
-                      selectedIssueFromMap={selectedIssueFromMap}
-                      clearSelectedIssueFromMap={() => setSelectedIssueFromMap(null)}
-                      onResolveIssue={handleResolveIssue}
-                      onVerifyResolution={handleVerifyResolution}
-                    />
-                  )}
-
-                  {activeTab === 'Profile' && (
-                    <ProfileView 
-                      userStats={userStats}
-                      leaderboard={leaderboard}
-                      userIssues={issues.filter(i => i.reporterName === 'You (Ankit Kumar)')}
-                      onSelectIssue={handleSelectIssueFromMap}
-                      onSwitchTab={setActiveTab}
-                    />
-                  )}
-                </motion.div>
-              </AnimatePresence>
-
-
-            </main>
-
-            {/* CivicBot Floating Chat Assistant */}
-            <CivicBot issues={issues} />
-
-            {/* 
-              Sticky Bottom Navigation Bar 
-              With 4 Tabs: Report, Map, Dashboard, Profile
-            */}
-            <nav className="absolute bottom-0 inset-x-0 bg-white border-t border-gray-200 px-4 py-2.5 flex justify-around items-center z-40 shadow-lg">
-              <button
-                onClick={() => {
-                  setActiveTab('Report');
-                  setSelectedIssueFromMap(null);
-                }}
-                id="tab-button-report"
-                className={`flex flex-col items-center space-y-1 transition-all ${
-                  activeTab === 'Report' ? 'text-[#1a73e8] scale-105' : 'text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                <AlertTriangle className={`w-5.5 h-5.5 ${activeTab === 'Report' ? 'stroke-[2.5px]' : 'stroke-2'}`} />
-                <span className="text-[10px] font-bold">Report</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setActiveTab('Map');
-                  setSelectedIssueFromMap(null);
-                }}
-                id="tab-button-map"
-                className={`flex flex-col items-center space-y-1 transition-all ${
-                  activeTab === 'Map' ? 'text-[#1a73e8] scale-105' : 'text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                <Compass className={`w-5.5 h-5.5 ${activeTab === 'Map' ? 'stroke-[2.5px]' : 'stroke-2'}`} />
-                <span className="text-[10px] font-bold">Map</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('Dashboard')}
-                id="tab-button-dashboard"
-                className={`flex flex-col items-center space-y-1 transition-all ${
-                  activeTab === 'Dashboard' ? 'text-[#1a73e8] scale-105' : 'text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                <Layers className={`w-5.5 h-5.5 ${activeTab === 'Dashboard' ? 'stroke-[2.5px]' : 'stroke-2'}`} />
-                <span className="text-[10px] font-bold">Feed</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setActiveTab('Profile');
-                  setSelectedIssueFromMap(null);
-                }}
-                id="tab-button-profile"
-                className={`flex flex-col items-center space-y-1 transition-all ${
-                  activeTab === 'Profile' ? 'text-[#1a73e8] scale-105' : 'text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                <User className={`w-5.5 h-5.5 ${activeTab === 'Profile' ? 'stroke-[2.5px]' : 'stroke-2'}`} />
-                <span className="text-[10px] font-bold">Profile</span>
-              </button>
-            </nav>
 
           </div>
         </APIProvider>

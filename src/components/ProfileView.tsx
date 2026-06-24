@@ -25,6 +25,7 @@ interface ProfileViewProps {
   userIssues: CivicIssue[];
   onSelectIssue: (issue: CivicIssue) => void;
   onSwitchTab: (tab: string) => void;
+  onLogout?: () => void;
 }
 
 export default function ProfileView({
@@ -32,7 +33,8 @@ export default function ProfileView({
   leaderboard,
   userIssues,
   onSelectIssue,
-  onSwitchTab
+  onSwitchTab,
+  onLogout
 }: ProfileViewProps) {
   
   const reportsCount = userStats.reportsCount;
@@ -289,6 +291,17 @@ export default function ProfileView({
           </div>
         )}
       </div>
+
+      {/* 5. Log Out Action */}
+      {onLogout && (
+        <button
+          onClick={onLogout}
+          id="btn-logout"
+          className="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-wider transition flex items-center justify-center space-x-1.5 cursor-pointer mt-6 shadow-3xs hover:shadow-2xs"
+        >
+          <span>Log Out of Session</span>
+        </button>
+      )}
 
     </div>
   );
