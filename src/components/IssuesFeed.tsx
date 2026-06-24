@@ -39,6 +39,7 @@ import {
   CartesianGrid 
 } from 'recharts';
 import { CivicIssue, IssueCategory, IssueStatus } from '../types';
+import WardScorecard from './WardScorecard';
 
 interface IssuesFeedProps {
   issues: CivicIssue[];
@@ -128,7 +129,7 @@ export default function IssuesFeed({
   };
 
   // Sub-tab state
-  const [subTab, setSubTab] = useState<'Feed' | 'Insights' | 'Validate'>('Feed');
+  const [subTab, setSubTab] = useState<'Feed' | 'Insights' | 'Validate' | 'Scorecard'>('Feed');
 
   // AI Insights State
   const [insights, setInsights] = useState<any>(null);
@@ -283,43 +284,54 @@ export default function IssuesFeed({
         </div>
       </div>
 
-      {/* Subtab Navigation: Feed vs Validate vs Insights */}
-      <div className="flex p-1 bg-gray-100 rounded-xl">
+      {/* Subtab Navigation: Feed vs Validate vs Insights vs Scorecard */}
+      <div className="grid grid-cols-4 p-1 bg-gray-100 rounded-xl">
         <button
           onClick={() => setSubTab('Feed')}
-          className={`flex-1 py-2 text-center rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer ${
+          className={`py-2 text-center rounded-lg text-[10px] font-bold transition flex items-center justify-center space-x-1 cursor-pointer ${
             subTab === 'Feed' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'
           }`}
         >
-          <Layers className="w-4 h-4" />
-          <span>Community Feed</span>
+          <Layers className="w-3.5 h-3.5 shrink-0" />
+          <span>Feed</span>
         </button>
         <button
           onClick={() => setSubTab('Validate')}
-          className={`flex-1 py-2 text-center rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer ${
+          className={`py-2 text-center rounded-lg text-[10px] font-bold transition flex items-center justify-center space-x-1 cursor-pointer ${
             subTab === 'Validate' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'
           }`}
         >
-          <CheckCircle className="w-4 h-4 text-emerald-500" />
+          <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
           <span className="relative">
-            Validate Spots
+            Validate
             {issues.filter(i => i.status !== 'Resolved' && i.upvotes < 5 && !i.hasUpvoted).length > 0 && (
-              <span className="absolute -top-1 -right-2 w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+              <span className="absolute -top-1 -right-1.5 w-1 h-1 bg-red-500 rounded-full"></span>
             )}
           </span>
         </button>
         <button
           onClick={() => setSubTab('Insights')}
-          className={`flex-1 py-2 text-center rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer ${
+          className={`py-2 text-center rounded-lg text-[10px] font-bold transition flex items-center justify-center space-x-1 cursor-pointer ${
             subTab === 'Insights' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'
           }`}
         >
-          <Sparkles className="w-4 h-4 text-purple-500 fill-purple-500/20" />
-          <span>AI Insights 🔮</span>
+          <Sparkles className="w-3.5 h-3.5 text-purple-500 fill-purple-500/20 shrink-0" />
+          <span>Insights</span>
+        </button>
+        <button
+          onClick={() => setSubTab('Scorecard')}
+          className={`py-2 text-center rounded-lg text-[10px] font-bold transition flex items-center justify-center space-x-1 cursor-pointer ${
+            subTab === 'Scorecard' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'
+          }`}
+        >
+          <Award className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+          <span>Scorecard</span>
         </button>
       </div>
 
-      {subTab !== 'Insights' ? (
+      {subTab === 'Scorecard' ? (
+        <WardScorecard />
+      ) : subTab !== 'Insights' ? (
         <>
           {/* Environmental & Civic Impact Dashboard */}
           <div className="bg-linear-to-r from-emerald-600 to-teal-700 text-white rounded-2xl p-4 shadow-sm relative overflow-hidden space-y-3">
