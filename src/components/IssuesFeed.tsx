@@ -80,26 +80,36 @@ export default function IssuesFeed({
   const getCategoryIcon = (category: IssueCategory) => {
     switch (category) {
       case 'Pothole': return '🕳️';
-      case 'Water Leak': return '💧';
-      case 'Streetlight': return '💡';
-      case 'Waste': return '🗑️';
+      case 'Water Leakage': return '💧';
+      case 'Damaged Streetlight': return '💡';
+      case 'Waste Dumping': return '🗑️';
+      case 'Broken Footpath': return '🧱';
+      case 'Flooding': return '🌊';
+      case 'Other': return '📌';
+      default: return '📌';
     }
   };
 
   const getCategoryColor = (category: IssueCategory) => {
     switch (category) {
       case 'Pothole': return 'bg-red-50 text-red-700 border-red-200';
-      case 'Water Leak': return 'bg-blue-50 text-blue-700 border-blue-200';
-      case 'Streetlight': return 'bg-amber-50 text-amber-700 border-amber-200';
-      case 'Waste': return 'bg-green-50 text-green-700 border-green-200';
+      case 'Water Leakage': return 'bg-blue-50 text-blue-700 border-blue-200';
+      case 'Damaged Streetlight': return 'bg-amber-50 text-amber-700 border-amber-200';
+      case 'Waste Dumping': return 'bg-green-50 text-green-700 border-green-200';
+      case 'Broken Footpath': return 'bg-orange-50 text-orange-700 border-orange-200';
+      case 'Flooding': return 'bg-cyan-50 text-cyan-700 border-cyan-200';
+      case 'Other': return 'bg-gray-50 text-gray-700 border-gray-200';
+      default: return 'bg-gray-50 text-gray-700 border-gray-200';
     }
   };
 
-  const getSeverityStyle = (severity: 'Low' | 'Medium' | 'High') => {
+  const getSeverityStyle = (severity: 'Low' | 'Medium' | 'High' | 'Critical') => {
     switch (severity) {
       case 'Low': return 'bg-green-100 text-green-800 border-green-200';
       case 'Medium': return 'bg-amber-100 text-amber-800 border-amber-200';
       case 'High': return 'bg-red-100 text-red-800 border-red-200';
+      case 'Critical': return 'bg-purple-100 text-purple-800 border-purple-200 animate-pulse font-extrabold';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
@@ -175,7 +185,7 @@ export default function IssuesFeed({
           >
             All Issues
           </button>
-          {(['Pothole', 'Water Leak', 'Streetlight', 'Waste'] as IssueCategory[]).map(cat => (
+          {(['Pothole', 'Water Leakage', 'Damaged Streetlight', 'Waste Dumping', 'Broken Footpath', 'Flooding', 'Other'] as IssueCategory[]).map(cat => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}

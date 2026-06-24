@@ -32,19 +32,19 @@ const SAMPLE_PHOTOS = [
     description: 'Deep road crater'
   },
   {
-    category: 'Water Leak' as IssueCategory,
+    category: 'Water Leakage' as IssueCategory,
     name: 'Pipeline Rupture',
     url: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&q=80&w=600',
     description: 'Ruptured water main'
   },
   {
-    category: 'Streetlight' as IssueCategory,
+    category: 'Damaged Streetlight' as IssueCategory,
     name: 'Dark Lightpost',
     url: 'https://images.unsplash.com/photo-1509024644558-2f56ce76c490?auto=format&fit=crop&q=80&w=600',
     description: 'Flickering/dead fixture'
   },
   {
-    category: 'Waste' as IssueCategory,
+    category: 'Waste Dumping' as IssueCategory,
     name: 'Trash Pileup',
     url: 'https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?auto=format&fit=crop&q=80&w=600',
     description: 'Overflowing dump heap'
@@ -64,7 +64,80 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
   const [showSuccess, setShowSuccess] = useState(false);
   const [pointsGained, setPointsGained] = useState(0);
 
+  // Gemini state variables
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiConfidence, setAiConfidence] = useState<number | null>(null);
+  const [suggestedDept, setSuggestedDept] = useState<string>('');
+  const [aiAnalysisError, setAiAnalysisError] = useState<string | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // AI powered image analysis
+  const analyzeWithGemini = async (imageData: string, mimeType: string) => {
+    setIsAnalyzing(true);
+    setAiAnalysisError(null);
+    setAiConfidence(null);
+
+    try {
+      let rawBase64 = imageData;
+      let actualMimeType = mimeType;
+      
+      if (imageData.startsWith('data:')) {
+        const parts = imageData.split(',');
+        if (parts.length === 2) {
+          rawBase64 = parts[1];
+          const match = parts[0].match(/data:(.*?);/);
+          if (match) {
+            actualMimeType = match[1];
+          }
+        }
+      }
+
+      const res = await fetch('/api/gemini/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image: rawBase64,
+          mimeType: actualMimeType,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Server error: ${res.status}`);
+      }
+
+      const data = await res.json();
+      
+      // Auto-fill form fields
+      if (data.category) {
+        setCategory(data.category as IssueCategory);
+      }
+      if (data.severity) {
+        setSeverity(data.severity as IssueSeverity);
+      }
+      if (data.description) {
+        setDescription(data.description);
+        if (!title) {
+          setTitle(`Reported ${data.category || 'Issue'}`);
+        }
+      }
+      if (data.confidence !== undefined) {
+        setAiConfidence(Math.round(data.confidence));
+      }
+      if (data.department) {
+        setSuggestedDept(data.department);
+      }
+
+    } catch (err: any) {
+      console.error('Gemini Analysis failed:', err);
+      setAiAnalysisError(err.message || 'AI analysis failed. Please specify details manually.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   // Auto-detect GPS with loading simulation and nice Indian reverse geocoding mock
   const handleDetectLocation = () => {
@@ -114,7 +187,9 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPhotoUrl(reader.result as string);
+        const resultUrl = reader.result as string;
+        setPhotoUrl(resultUrl);
+        analyzeWithGemini(resultUrl, file.type);
       };
       reader.readAsDataURL(file);
     }
@@ -123,13 +198,15 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
   const handleSelectSamplePhoto = (url: string, cat: IssueCategory) => {
     setPhotoUrl(url);
     setCategory(cat);
-    // Autofill an elegant title based on category
-    if (!title) {
-      if (cat === 'Pothole') setTitle('Severe pothole on main road crossing');
-      if (cat === 'Water Leak') setTitle('BWSSB drinking water pipeline burst');
-      if (cat === 'Streetlight') setTitle('Multiple streetlights dark and dead');
-      if (cat === 'Waste') setTitle('Garbage dumped illegally on footpath');
-    }
+    
+    // Autofill an elegant title based on category initially
+    if (cat === 'Pothole') setTitle('Severe pothole on main road crossing');
+    if (cat === 'Water Leakage') setTitle('BWSSB drinking water pipeline burst');
+    if (cat === 'Damaged Streetlight') setTitle('Multiple streetlights dark and dead');
+    if (cat === 'Waste Dumping') setTitle('Garbage dumped illegally on footpath');
+
+    // Trigger full real-time Gemini AI analysis
+    analyzeWithGemini(url, 'image/jpeg');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -260,6 +337,50 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
               </div>
             </div>
 
+            {/* AI Analysis Status Row */}
+            {(isAnalyzing || aiConfidence !== null || aiAnalysisError) && (
+              <div className="bg-gray-50 border border-gray-150 rounded-xl p-3 flex flex-col space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center space-x-1">
+                    <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+                    <span>Gemini AI Coprocessor</span>
+                  </span>
+                  {isAnalyzing && (
+                    <span className="flex items-center space-x-1 text-[10px] text-blue-600 font-extrabold animate-pulse uppercase tracking-wider">
+                      <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
+                      <span>Analyzing Photo...</span>
+                    </span>
+                  )}
+                  {!isAnalyzing && aiConfidence !== null && (
+                    <span className="bg-green-100 text-green-800 text-[9px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center space-x-1 shadow-2xs border border-green-200">
+                      <CheckCircle className="w-3 h-3 text-green-600" />
+                      <span>AI Analyzed</span>
+                    </span>
+                  )}
+                </div>
+
+                {/* Confidence Score & Suggested Dept details */}
+                {!isAnalyzing && aiConfidence !== null && (
+                  <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 bg-white p-2 rounded-lg border border-gray-150">
+                    <div>
+                      <span className="block text-[8px] font-extrabold text-gray-400 uppercase tracking-widest">Confidence Score</span>
+                      <span className="text-gray-900 font-black text-xs">{aiConfidence}% Accuracy</span>
+                    </div>
+                    {suggestedDept && (
+                      <div>
+                        <span className="block text-[8px] font-extrabold text-gray-400 uppercase tracking-widest">Suggested Department</span>
+                        <span className="text-gray-900 font-black text-xs truncate block">{suggestedDept}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {aiAnalysisError && (
+                  <p className="text-[10px] text-red-600 font-semibold">{aiAnalysisError}</p>
+                )}
+              </div>
+            )}
+
             {/* 2. Category & Severity */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
@@ -272,9 +393,12 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
                   className="w-full text-xs font-semibold border border-gray-300 rounded-lg p-2.5 bg-white text-gray-800 focus:outline-none focus:border-[#1a73e8]"
                 >
                   <option value="Pothole">🕳️ Pothole</option>
-                  <option value="Water Leak">💧 Water Leak</option>
-                  <option value="Streetlight">💡 Streetlight</option>
-                  <option value="Waste">🗑️ Waste</option>
+                  <option value="Water Leakage">💧 Water Leakage</option>
+                  <option value="Damaged Streetlight">💡 Damaged Streetlight</option>
+                  <option value="Waste Dumping">🗑️ Waste Dumping</option>
+                  <option value="Broken Footpath">🧱 Broken Footpath</option>
+                  <option value="Flooding">🌊 Flooding</option>
+                  <option value="Other">📌 Other</option>
                 </select>
               </div>
 
@@ -282,19 +406,21 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Severity <span className="text-red-500">*</span>
                 </label>
-                <div className="grid grid-cols-3 gap-1 bg-gray-100 p-1 rounded-lg">
-                  {(['Low', 'Medium', 'High'] as IssueSeverity[]).map((sev) => (
+                <div className="grid grid-cols-4 gap-0.5 bg-gray-100 p-1 rounded-lg">
+                  {(['Low', 'Medium', 'High', 'Critical'] as IssueSeverity[]).map((sev) => (
                     <button
                       key={sev}
                       type="button"
                       onClick={() => setSeverity(sev)}
-                      className={`py-1.5 rounded-md text-[10px] font-bold transition-all ${
+                      className={`py-1.5 rounded-md text-[9px] font-bold transition-all ${
                         severity === sev
                           ? sev === 'Low'
                             ? 'bg-green-600 text-white shadow-xs'
                             : sev === 'Medium'
                             ? 'bg-amber-500 text-white shadow-xs'
-                            : 'bg-red-600 text-white shadow-xs'
+                            : sev === 'High'
+                            ? 'bg-red-600 text-white shadow-xs'
+                            : 'bg-purple-700 text-white shadow-xs'
                           : 'text-gray-500 hover:text-gray-800 hover:bg-gray-200/50'
                       }`}
                     >

@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export type IssueCategory = 'Pothole' | 'Water Leak' | 'Streetlight' | 'Waste';
-export type IssueSeverity = 'Low' | 'Medium' | 'High';
+export type IssueCategory = 'Pothole' | 'Water Leakage' | 'Damaged Streetlight' | 'Waste Dumping' | 'Broken Footpath' | 'Flooding' | 'Other';
+export type IssueSeverity = 'Low' | 'Medium' | 'High' | 'Critical';
 export type IssueStatus = 'Open' | 'In Progress' | 'Resolved';
 
 export interface Comment {

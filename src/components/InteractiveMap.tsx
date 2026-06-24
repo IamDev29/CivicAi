@@ -71,9 +71,26 @@ export default function InteractiveMap({
   const getPinColor = (category: IssueCategory) => {
     switch (category) {
       case 'Pothole': return '#ea4335'; // Red
-      case 'Water Leak': return '#1a73e8'; // Blue
-      case 'Streetlight': return '#fbbc05'; // Yellow/Orange
-      case 'Waste': return '#34a853'; // Green
+      case 'Water Leakage': return '#1a73e8'; // Blue
+      case 'Damaged Streetlight': return '#fbbc05'; // Yellow/Orange
+      case 'Waste Dumping': return '#34a853'; // Green
+      case 'Broken Footpath': return '#ff6d01'; // Orange
+      case 'Flooding': return '#00acc1'; // Dark Blue
+      case 'Other': return '#70757a'; // Grey
+      default: return '#70757a';
+    }
+  };
+
+  const getCategoryEmoji = (category: IssueCategory) => {
+    switch (category) {
+      case 'Pothole': return '🕳️';
+      case 'Water Leakage': return '💧';
+      case 'Damaged Streetlight': return '💡';
+      case 'Waste Dumping': return '🗑️';
+      case 'Broken Footpath': return '🧱';
+      case 'Flooding': return '🌊';
+      case 'Other': return '📌';
+      default: return '📌';
     }
   };
 
@@ -108,7 +125,7 @@ export default function InteractiveMap({
             >
               All Types
             </button>
-            {(['Pothole', 'Water Leak', 'Streetlight', 'Waste'] as IssueCategory[]).map(cat => (
+            {(['Pothole', 'Water Leakage', 'Damaged Streetlight', 'Waste Dumping', 'Broken Footpath', 'Flooding', 'Other'] as IssueCategory[]).map(cat => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
@@ -118,7 +135,7 @@ export default function InteractiveMap({
                     : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-100'
                 }`}
               >
-                <span>{cat === 'Pothole' ? '🕳️' : cat === 'Water Leak' ? '💧' : cat === 'Streetlight' ? '💡' : '🗑️'}</span>
+                <span>{getCategoryEmoji(cat)}</span>
                 <span>{cat}</span>
               </button>
             ))}
@@ -230,7 +247,7 @@ export default function InteractiveMap({
                   }`}
                   style={{ backgroundColor: color }}
                 >
-                  <span>{issue.category === 'Pothole' ? '🕳️' : issue.category === 'Water Leak' ? '💧' : issue.category === 'Streetlight' ? '💡' : '🗑️'}</span>
+                  <span>{getCategoryEmoji(issue.category)}</span>
                   <span className="max-w-[45px] truncate text-[8px] font-bold uppercase">{issue.category}</span>
                 </div>
                 
