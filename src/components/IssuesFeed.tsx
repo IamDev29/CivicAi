@@ -22,7 +22,9 @@ import {
   Sparkles,
   Layers,
   AlertTriangle,
-  Share2
+  Share2,
+  Camera,
+  Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -45,6 +47,15 @@ interface IssuesFeedProps {
   selectedIssueFromMap?: CivicIssue | null;
   clearSelectedIssueFromMap?: () => void;
   onResolveIssue?: (id: string) => void;
+  onVerifyResolution?: (
+    id: string,
+    isResolved: boolean,
+    confidence: number,
+    explanation: string,
+    whatChanged: string,
+    whatRemains: string,
+    uploadedPhotoUrl: string
+  ) => void;
   triggerAlert?: (msg: string) => void;
 }
 
@@ -55,6 +66,7 @@ export default function IssuesFeed({
   selectedIssueFromMap,
   clearSelectedIssueFromMap,
   onResolveIssue,
+  onVerifyResolution,
   triggerAlert
 }: IssuesFeedProps) {
   const [selectedCategory, setSelectedCategory] = useState<IssueCategory | 'All'>('All');
@@ -62,6 +74,58 @@ export default function IssuesFeed({
   const [expandedIssueId, setExpandedIssueId] = useState<string | null>(null);
   const [newCommentTexts, setNewCommentTexts] = useState<{ [key: string]: string }>({});
   const [copiedIssueId, setCopiedIssueId] = useState<string | null>(null);
+
+  // States for verification
+  const [verifyingIssues, setVerifyingIssues] = useState<{ [key: string]: boolean }>({});
+  const [verifyErrors, setVerifyErrors] = useState<{ [key: string]: string | null }>({});
+
+  const handleVerifyUpload = async (e: React.ChangeEvent<HTMLInputElement>, issue: CivicIssue) => {
+    const file = e.target.files?.[0];
+    if (!file || !onVerifyResolution) return;
+
+    const issueId = issue.id;
+    setVerifyingIssues(prev => ({ ...prev, [issueId]: true }));
+    setVerifyErrors(prev => ({ ...prev, [issueId]: null }));
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64Data = reader.result as string;
+      try {
+        const response = await fetch('/api/gemini/compare-images', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            originalPhotoUrl: issue.photoUrl,
+            newPhotoUrl: base64Data,
+            category: issue.category
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('AI Resolution verification failed.');
+        }
+
+        const result = await response.json();
+        onVerifyResolution(
+          issueId,
+          result.isResolved,
+          result.confidence,
+          result.explanation,
+          result.whatChanged,
+          result.whatRemains,
+          base64Data
+        );
+      } catch (err: any) {
+        console.error('Error in resolution verification:', err);
+        setVerifyErrors(prev => ({ ...prev, [issueId]: err.message || 'Verification process failed.' }));
+      } finally {
+        setVerifyingIssues(prev => ({ ...prev, [issueId]: false }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Sub-tab state
   const [subTab, setSubTab] = useState<'Feed' | 'Insights' | 'Validate'>('Feed');
@@ -558,6 +622,137 @@ export default function IssuesFeed({
                             </div>
                           );
                         })()}
+
+                        {/* Resolution Verification System Section */}
+                        {issue.status === 'Resolved' && !issue.resolutionAiVerdict && (
+                          <div className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 border border-blue-200/60 rounded-xl p-4.5 space-y-3.5 shadow-3xs">
+                            <div className="flex items-start space-x-3">
+                              <div className="bg-blue-100 p-2 rounded-lg text-blue-600 shrink-0 text-base">
+                                🏢
+                              </div>
+                              <div className="space-y-1">
+                                <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider">Citizen Verification Required</h4>
+                                <p className="text-[11px] text-gray-600 leading-normal font-semibold">
+                                  The municipality says this is fixed. Can you verify if it is indeed fixed? Please upload a new photo of the location to trigger the autonomous AI auditor.
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <label
+                                htmlFor={`verify-upload-${issue.id}`}
+                                className="bg-[#1a73e8] hover:bg-[#1557b0] text-white font-extrabold text-[10px] px-3.5 py-2 rounded-lg cursor-pointer transition shadow-3xs uppercase tracking-wider flex items-center space-x-1.5"
+                              >
+                                <Camera className="w-4 h-4" />
+                                <span>Can you verify?</span>
+                              </label>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                id={`verify-upload-${issue.id}`}
+                                onChange={(e) => handleVerifyUpload(e, issue)}
+                                className="hidden"
+                                disabled={verifyingIssues[issue.id]}
+                              />
+                            </div>
+
+                            {verifyingIssues[issue.id] && (
+                              <div className="flex items-center space-x-2.5 text-xs text-[#1a73e8] bg-white p-3 rounded-lg border border-blue-100 animate-pulse">
+                                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                                <span className="font-extrabold text-[10px] uppercase tracking-wider">AI Vision verification agent is comparing images...</span>
+                              </div>
+                            )}
+
+                            {verifyErrors[issue.id] && (
+                              <div className="bg-red-50 text-red-700 p-2.5 rounded-lg border border-red-100 text-[10px] font-bold flex items-center space-x-1.5">
+                                <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                                <span>{verifyErrors[issue.id]}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Side-by-Side Resolution Audit and Before/After Card */}
+                        {issue.resolutionAiVerdict && (
+                          <div className="space-y-3.5">
+                            {issue.resolutionAiVerdict.isResolved ? (
+                              <div className="bg-emerald-50 border border-emerald-200/60 rounded-xl p-4 space-y-2 shadow-3xs">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-black text-emerald-700 bg-emerald-100/50 px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center space-x-1">
+                                    <CheckCircle className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
+                                    <span>AI Verified Resolved ✓</span>
+                                  </span>
+                                  <span className="text-[10px] font-black text-emerald-700">({issue.resolutionAiVerdict.confidence}% confidence)</span>
+                                </div>
+                                <div className="h-1.5 bg-emerald-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${issue.resolutionAiVerdict.confidence}%` }} />
+                                </div>
+                                <p className="text-[11px] text-emerald-800 leading-normal font-bold">
+                                  {issue.resolutionAiVerdict.explanation}
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="bg-amber-50 border border-amber-200/60 rounded-xl p-4 space-y-2 shadow-3xs">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-black text-amber-700 bg-amber-100/50 px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center space-x-1">
+                                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                                    <span>Not fully resolved ⚠️</span>
+                                  </span>
+                                  <span className="text-[10px] font-black text-amber-700">Auto-Reopened & Notified</span>
+                                </div>
+                                <div className="h-1.5 bg-amber-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-amber-500 rounded-full animate-pulse" style={{ width: `${100 - issue.resolutionAiVerdict.confidence}%` }} />
+                                </div>
+                                <p className="text-[11px] text-amber-800 leading-normal font-bold">
+                                  {issue.resolutionAiVerdict.explanation}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Side-by-Side Before / After Images */}
+                            <div className="grid grid-cols-2 gap-3.5 bg-white p-3.5 rounded-xl border border-gray-150 shadow-3xs">
+                              <div className="space-y-1.5">
+                                <p className="text-[9px] font-black text-red-500 uppercase tracking-widest leading-none">Before: Reported Issue</p>
+                                <div className="relative rounded-lg overflow-hidden border border-gray-200 aspect-video bg-gray-50 shadow-3xs">
+                                  <img
+                                    src={issue.photoUrl}
+                                    alt="Before report"
+                                    className="w-full h-full object-cover"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                </div>
+                              </div>
+                              <div className="space-y-1.5">
+                                <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest leading-none">After: Citizen Verification</p>
+                                <div className="relative rounded-lg overflow-hidden border border-gray-200 aspect-video bg-gray-50 shadow-3xs">
+                                  <img
+                                    src={issue.resolutionPhotoUrl}
+                                    alt="After verification upload"
+                                    className="w-full h-full object-cover"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="col-span-2 pt-2.5 border-t border-gray-100 space-y-2 text-[10px]">
+                                <div>
+                                  <span className="font-extrabold text-gray-500 uppercase tracking-widest text-[9px]">What Changed:</span>
+                                  <p className="text-gray-700 font-bold mt-0.5 leading-relaxed bg-gray-50/50 p-2 rounded-lg border border-gray-100">
+                                    {issue.resolutionAiVerdict.whatChanged}
+                                  </p>
+                                </div>
+                                {!issue.resolutionAiVerdict.isResolved && (
+                                  <div>
+                                    <span className="font-extrabold text-amber-600 uppercase tracking-widest text-[9px]">What Remains:</span>
+                                    <p className="text-amber-800 font-bold mt-0.5 leading-relaxed bg-amber-50/20 p-2 rounded-lg border border-amber-100">
+                                      {issue.resolutionAiVerdict.whatRemains}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Reporter details */}
                         <div className="flex items-center space-x-2 text-xs text-gray-500 border-b border-gray-100 pb-2">

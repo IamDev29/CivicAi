@@ -39,6 +39,14 @@ export interface CivicIssue {
   noVotes?: number;
   userVotedYes?: boolean;
   userVotedNo?: boolean;
+  resolutionPhotoUrl?: string;
+  resolutionAiVerdict?: {
+    isResolved: boolean;
+    confidence: number;
+    explanation: string;
+    whatChanged: string;
+    whatRemains: string;
+  };
 }
 
 export interface LeaderboardUser {

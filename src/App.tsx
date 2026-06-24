@@ -17,7 +17,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 
 // Types & Mock Data
-import { CivicIssue, LeaderboardUser, UserStats } from './types';
+import { CivicIssue, LeaderboardUser, UserStats, IssueStatus } from './types';
 import { INITIAL_ISSUES, MOCK_LEADERBOARD, MOCK_USER_STATS } from './mockData';
 
 // Subcomponents
@@ -28,6 +28,7 @@ import InteractiveMap from './components/InteractiveMap';
 import IssuesFeed from './components/IssuesFeed';
 import ProfileView from './components/ProfileView';
 import OnboardingModal from './components/OnboardingModal';
+import CivicBot from './components/CivicBot';
 import { APIProvider } from '@vis.gl/react-google-maps';
 
 const API_KEY =
@@ -231,6 +232,82 @@ export default function App() {
     setActiveTab('Dashboard');
   };
 
+  const handleResolveIssue = (issueId: string) => {
+    setIssues(prev => {
+      return prev.map(issue => {
+        if (issue.id === issueId) {
+          return {
+            ...issue,
+            status: 'Resolved' as IssueStatus,
+            comments: [
+              ...issue.comments,
+              {
+                id: `comment-res-${Date.now()}`,
+                userName: 'Department Marshal (System)',
+                text: 'The department has completed the repairs at the site and marked this issue as RESOLVED. Reporting citizens, please verify if this has been fixed successfully by uploading a verification photo!',
+                date: new Date().toISOString().split('T')[0]
+              }
+            ]
+          };
+        }
+        return issue;
+      });
+    });
+    triggerAlert('Issue marked as Resolved by department! Waiting for citizen verification. 🔔');
+  };
+
+  const handleVerifyResolution = (
+    issueId: string, 
+    isResolved: boolean, 
+    confidence: number, 
+    explanation: string, 
+    whatChanged: string, 
+    whatRemains: string, 
+    uploadedPhotoUrl: string
+  ) => {
+    setIssues(prev => {
+      return prev.map(issue => {
+        if (issue.id === issueId) {
+          const updatedStatus = isResolved ? ('Resolved' as IssueStatus) : ('Open' as IssueStatus);
+          
+          const commentText = isResolved
+            ? `🤖 AI Resolution Audit: VERIFIED RESOLVED (${confidence}% confidence). ${explanation}. Visible changes: ${whatChanged}`
+            : `🚨 AI Resolution Audit: REJECTED (Confidence: ${100 - confidence}%). Issue is NOT fully resolved. ${explanation}. What remains: ${whatRemains}. Automatically re-opened.`;
+
+          return {
+            ...issue,
+            status: updatedStatus,
+            resolutionPhotoUrl: uploadedPhotoUrl,
+            resolutionAiVerdict: {
+              isResolved,
+              confidence,
+              explanation,
+              whatChanged,
+              whatRemains
+            },
+            comments: [
+              ...issue.comments,
+              {
+                id: `comment-ver-${Date.now()}`,
+                userName: 'AI Verification Agent (System)',
+                text: commentText,
+                date: new Date().toISOString().split('T')[0]
+              }
+            ]
+          };
+        }
+        return issue;
+      });
+    });
+
+    if (isResolved) {
+      handleAddPoints(20);
+      triggerAlert('AI verified resolution! +20 BMC verification points 🏆');
+    } else {
+      triggerAlert('AI flagged incomplete repair. Issue re-opened & department notified! ⚠️');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center py-0 md:py-6 px-0 md:px-4 font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
       {!hasValidKey ? (
@@ -397,6 +474,8 @@ export default function App() {
                       onAddComment={handleAddComment}
                       selectedIssueFromMap={selectedIssueFromMap}
                       clearSelectedIssueFromMap={() => setSelectedIssueFromMap(null)}
+                      onResolveIssue={handleResolveIssue}
+                      onVerifyResolution={handleVerifyResolution}
                     />
                   )}
 
@@ -414,6 +493,9 @@ export default function App() {
 
 
             </main>
+
+            {/* CivicBot Floating Chat Assistant */}
+            <CivicBot issues={issues} />
 
             {/* 
               Sticky Bottom Navigation Bar 
