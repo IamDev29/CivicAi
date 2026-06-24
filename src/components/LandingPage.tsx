@@ -45,7 +45,7 @@ export default function LandingPage({ onStartReporting, onAuthorityLogin }: Land
   ];
 
   return (
-    <div className="bg-white min-h-full flex flex-col justify-between relative overflow-x-hidden">
+    <div className="bg-white h-full overflow-y-auto scrollbar-none flex flex-col justify-between relative overflow-x-hidden">
       
       {/* Self-contained CSS for smooth marquee scrolling & animation keyframes */}
       <style>{`
