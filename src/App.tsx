@@ -27,6 +27,14 @@ import ReportForm from './components/ReportForm';
 import InteractiveMap from './components/InteractiveMap';
 import IssuesFeed from './components/IssuesFeed';
 import ProfileView from './components/ProfileView';
+import { APIProvider } from '@vis.gl/react-google-maps';
+
+const API_KEY =
+  process.env.GOOGLE_MAPS_PLATFORM_KEY ||
+  (import.meta as any).env?.VITE_GOOGLE_MAPS_PLATFORM_KEY ||
+  (globalThis as any).GOOGLE_MAPS_PLATFORM_KEY ||
+  '';
+const hasValidKey = Boolean(API_KEY) && API_KEY !== 'YOUR_API_KEY';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('Report');
@@ -156,7 +164,7 @@ export default function App() {
 
     if (wasUpvoted) {
       handleAddPoints(5); // 5 points for validating!
-      triggerAlert('Issue validated! +5 BBMP points ⭐');
+      triggerAlert('Issue validated! +5 BMC points ⭐');
     } else {
       setUserStats(prev => ({
         ...prev,
@@ -199,187 +207,231 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center py-0 md:py-6 px-0 md:px-4 font-sans antialiased selection:bg-blue-100 selection:text-blue-900">
-      
-      {/* 
-        Phone Mockup Frame on Desktop, 
-        Edge-to-Edge Native Application on Mobile 
-      */}
-      <div className="w-full max-w-md md:rounded-[40px] md:shadow-2xl md:border-[12px] md:border-gray-900 overflow-hidden bg-white flex flex-col h-screen md:h-[840px] relative">
-        
-        {/* Sticky Header */}
-        <Header />
-
-        {/* Gamification Indicator Strip */}
-        <GamificationStrip 
-          points={userStats.points}
-          badge={userStats.badge}
-          rank={userStats.rank}
-          level={userStats.level}
-          pointsToNextLevel={200}
-        />
-
-        {/* Real-time Popup alert for point bonuses */}
-        <AnimatePresence>
-          {alertMessage && (
-            <motion.div
-              initial={{ y: -30, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -30, opacity: 0 }}
-              className="absolute top-36 left-4 right-4 bg-gray-900 text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-lg z-50 flex items-center justify-between border border-gray-800"
-            >
-              <span>{alertMessage}</span>
-              <Sparkles className="w-4 h-4 text-amber-400 fill-amber-400" />
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Level Up Celebration Screen Overlay */}
-        <AnimatePresence>
-          {showLevelUp && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/80 z-50 flex flex-col justify-center items-center text-white p-6"
-            >
-              <motion.div
-                initial={{ scale: 0.8, y: 50 }}
-                animate={{ scale: 1, y: 0 }}
-                className="bg-white text-gray-950 p-6 rounded-3xl text-center space-y-6 max-w-xs shadow-2xl relative overflow-hidden"
-              >
-                {/* Decorative confetti particles */}
-                <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-yellow-400 via-pink-500 to-blue-500"></div>
-
-                <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto text-3xl font-bold animate-bounce">
-                  👑
-                </div>
-
-                <div className="space-y-1">
-                  <p className="text-[10px] text-amber-600 font-extrabold uppercase tracking-widest">Congratulations!</p>
-                  <h3 className="text-xl font-black">Level Up Reached!</h3>
-                  <p className="text-sm font-extrabold text-blue-600">You are now Level {userStats.level}</p>
-                </div>
-
-                <p className="text-xs text-gray-500 leading-normal">
-                  Thank you for keeping Bengaluru's streets secure and validating community hazards. You have unlocked new municipal priorities!
-                </p>
-
-                <button
-                  onClick={() => setShowLevelUp(false)}
-                  className="w-full bg-[#1a73e8] hover:bg-[#1557b0] text-white py-2.5 rounded-xl text-xs font-bold transition shadow-md"
+      {!hasValidKey ? (
+        <div className="w-full max-w-md md:rounded-[40px] md:shadow-2xl md:border-[12px] md:border-gray-900 overflow-hidden bg-white flex flex-col h-screen md:h-[840px] justify-center items-center p-8 text-center space-y-6">
+          <div className="w-16 h-16 bg-blue-50 text-[#1a73e8] rounded-2xl flex items-center justify-center text-3xl font-bold shadow-sm">
+            🗺️
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-black text-gray-900">Google Maps Key Required</h2>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              CivicAI requires a Google Maps Platform API key to visualize street hazards in real-time.
+            </p>
+          </div>
+          
+          <div className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-4 text-left space-y-3">
+            <p className="text-xs font-bold text-gray-800">Follow these simple steps:</p>
+            <ol className="text-xs text-gray-600 space-y-2 list-decimal list-inside font-medium leading-relaxed">
+              <li>
+                <a 
+                  href="https://console.cloud.google.com/google/maps-apis/start?utm_campaign=gmp-code-assist-ais" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-[#1a73e8] hover:underline font-bold"
                 >
-                  Awesome, Continue
-                </button>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                  Get a Google Maps API Key
+                </a>
+              </li>
+              <li>
+                Open <span className="font-bold text-gray-900">Settings</span> (⚙️ gear icon, top-right corner)
+              </li>
+              <li>
+                Go to <span className="font-bold text-gray-900">Secrets</span>, create <code className="bg-gray-200 px-1 py-0.5 rounded text-[10px] font-mono text-gray-800">GOOGLE_MAPS_PLATFORM_KEY</code>
+              </li>
+              <li>
+                Paste your API key and save. The app builds automatically.
+              </li>
+            </ol>
+          </div>
 
-        {/* Main Content Area (Scrollable Section) */}
-        <main className="flex-1 overflow-y-auto p-4 bg-[#f8f9fa] relative scrollbar-none pb-20">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, x: 5 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -5 }}
-              transition={{ duration: 0.15 }}
-              className="h-full"
-            >
-              {activeTab === 'Report' && (
-                <ReportForm 
-                  onSubmitIssue={handleSubmitIssue}
-                  onAddPoints={handleAddPoints}
-                />
+          <div className="text-[10px] text-gray-400 font-semibold tracking-wider uppercase">
+            CivicAI India • Bhubaneswar
+          </div>
+        </div>
+      ) : (
+        <APIProvider apiKey={API_KEY} version="weekly">
+          {/* 
+            Phone Mockup Frame on Desktop, 
+            Edge-to-Edge Native Application on Mobile 
+          */}
+          <div className="w-full max-w-md md:rounded-[40px] md:shadow-2xl md:border-[12px] md:border-gray-900 overflow-hidden bg-white flex flex-col h-screen md:h-[840px] relative">
+            
+            {/* Sticky Header */}
+            <Header />
+
+            {/* Gamification Indicator Strip */}
+            <GamificationStrip 
+              points={userStats.points}
+              badge={userStats.badge}
+              rank={userStats.rank}
+              level={userStats.level}
+              pointsToNextLevel={200}
+            />
+
+            {/* Real-time Popup alert for point bonuses */}
+            <AnimatePresence>
+              {alertMessage && (
+                <motion.div
+                  initial={{ y: -30, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: -30, opacity: 0 }}
+                  className="absolute top-36 left-4 right-4 bg-gray-900 text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-lg z-50 flex items-center justify-between border border-gray-800"
+                >
+                  <span>{alertMessage}</span>
+                  <Sparkles className="w-4 h-4 text-amber-400 fill-amber-400" />
+                </motion.div>
               )}
+            </AnimatePresence>
 
-              {activeTab === 'Map' && (
-                <InteractiveMap 
-                  issues={issues}
-                  onUpvoteIssue={handleUpvoteIssue}
-                  onSelectIssue={handleSelectIssueFromMap}
-                />
+            {/* Level Up Celebration Screen Overlay */}
+            <AnimatePresence>
+              {showLevelUp && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 bg-black/80 z-50 flex flex-col justify-center items-center text-white p-6"
+                >
+                  <motion.div
+                    initial={{ scale: 0.8, y: 50 }}
+                    animate={{ scale: 1, y: 0 }}
+                    className="bg-white text-gray-950 p-6 rounded-3xl text-center space-y-6 max-w-xs shadow-2xl relative overflow-hidden"
+                  >
+                    {/* Decorative confetti particles */}
+                    <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-yellow-400 via-pink-500 to-blue-500"></div>
+
+                    <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto text-3xl font-bold animate-bounce">
+                      👑
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-amber-600 font-extrabold uppercase tracking-widest">Congratulations!</p>
+                      <h3 className="text-xl font-black">Level Up Reached!</h3>
+                      <p className="text-sm font-extrabold text-blue-600">You are now Level {userStats.level}</p>
+                    </div>
+
+                    <p className="text-xs text-gray-500 leading-normal">
+                      Thank you for keeping Bhubaneswar's streets secure and validating community hazards. You have unlocked new municipal priorities!
+                    </p>
+
+                    <button
+                      onClick={() => setShowLevelUp(false)}
+                      className="w-full bg-[#1a73e8] hover:bg-[#1557b0] text-white py-2.5 rounded-xl text-xs font-bold transition shadow-md"
+                    >
+                      Awesome, Continue
+                    </button>
+                  </motion.div>
+                </motion.div>
               )}
+            </AnimatePresence>
 
-              {activeTab === 'Dashboard' && (
-                <IssuesFeed 
-                  issues={issues}
-                  onUpvoteIssue={handleUpvoteIssue}
-                  onAddComment={handleAddComment}
-                  selectedIssueFromMap={selectedIssueFromMap}
-                  clearSelectedIssueFromMap={() => setSelectedIssueFromMap(null)}
-                />
-              )}
+            {/* Main Content Area (Scrollable Section) */}
+            <main className="flex-1 overflow-y-auto p-4 bg-[#f8f9fa] relative scrollbar-none pb-20">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, x: 5 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -5 }}
+                  transition={{ duration: 0.15 }}
+                  className="h-full"
+                >
+                  {activeTab === 'Report' && (
+                    <ReportForm 
+                      onSubmitIssue={handleSubmitIssue}
+                      onAddPoints={handleAddPoints}
+                    />
+                  )}
 
-              {activeTab === 'Profile' && (
-                <ProfileView 
-                  userStats={userStats}
-                  leaderboard={leaderboard}
-                  userIssues={issues.filter(i => i.reporterName === 'You (Ankit Kumar)')}
-                  onSelectIssue={handleSelectIssueFromMap}
-                  onSwitchTab={setActiveTab}
-                />
-              )}
-            </motion.div>
-          </AnimatePresence>
-        </main>
+                  {activeTab === 'Map' && (
+                    <InteractiveMap 
+                      issues={issues}
+                      onUpvoteIssue={handleUpvoteIssue}
+                      onSelectIssue={handleSelectIssueFromMap}
+                    />
+                  )}
 
-        {/* 
-          Sticky Bottom Navigation Bar 
-          With 4 Tabs: Report, Map, Dashboard, Profile
-        */}
-        <nav className="absolute bottom-0 inset-x-0 bg-white border-t border-gray-200 px-4 py-2.5 flex justify-around items-center z-40 shadow-lg">
-          <button
-            onClick={() => {
-              setActiveTab('Report');
-              setSelectedIssueFromMap(null);
-            }}
-            className={`flex flex-col items-center space-y-1 transition-all ${
-              activeTab === 'Report' ? 'text-[#1a73e8] scale-105' : 'text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            <AlertTriangle className={`w-5.5 h-5.5 ${activeTab === 'Report' ? 'stroke-[2.5px]' : 'stroke-2'}`} />
-            <span className="text-[10px] font-bold">Report</span>
-          </button>
+                  {activeTab === 'Dashboard' && (
+                    <IssuesFeed 
+                      issues={issues}
+                      onUpvoteIssue={handleUpvoteIssue}
+                      onAddComment={handleAddComment}
+                      selectedIssueFromMap={selectedIssueFromMap}
+                      clearSelectedIssueFromMap={() => setSelectedIssueFromMap(null)}
+                    />
+                  )}
 
-          <button
-            onClick={() => {
-              setActiveTab('Map');
-              setSelectedIssueFromMap(null);
-            }}
-            className={`flex flex-col items-center space-y-1 transition-all ${
-              activeTab === 'Map' ? 'text-[#1a73e8] scale-105' : 'text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            <Compass className={`w-5.5 h-5.5 ${activeTab === 'Map' ? 'stroke-[2.5px]' : 'stroke-2'}`} />
-            <span className="text-[10px] font-bold">Map</span>
-          </button>
+                  {activeTab === 'Profile' && (
+                    <ProfileView 
+                      userStats={userStats}
+                      leaderboard={leaderboard}
+                      userIssues={issues.filter(i => i.reporterName === 'You (Ankit Kumar)')}
+                      onSelectIssue={handleSelectIssueFromMap}
+                      onSwitchTab={setActiveTab}
+                    />
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </main>
 
-          <button
-            onClick={() => setActiveTab('Dashboard')}
-            className={`flex flex-col items-center space-y-1 transition-all ${
-              activeTab === 'Dashboard' ? 'text-[#1a73e8] scale-105' : 'text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            <Layers className={`w-5.5 h-5.5 ${activeTab === 'Dashboard' ? 'stroke-[2.5px]' : 'stroke-2'}`} />
-            <span className="text-[10px] font-bold">Feed</span>
-          </button>
+            {/* 
+              Sticky Bottom Navigation Bar 
+              With 4 Tabs: Report, Map, Dashboard, Profile
+            */}
+            <nav className="absolute bottom-0 inset-x-0 bg-white border-t border-gray-200 px-4 py-2.5 flex justify-around items-center z-40 shadow-lg">
+              <button
+                onClick={() => {
+                  setActiveTab('Report');
+                  setSelectedIssueFromMap(null);
+                }}
+                className={`flex flex-col items-center space-y-1 transition-all ${
+                  activeTab === 'Report' ? 'text-[#1a73e8] scale-105' : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                <AlertTriangle className={`w-5.5 h-5.5 ${activeTab === 'Report' ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+                <span className="text-[10px] font-bold">Report</span>
+              </button>
 
-          <button
-            onClick={() => {
-              setActiveTab('Profile');
-              setSelectedIssueFromMap(null);
-            }}
-            className={`flex flex-col items-center space-y-1 transition-all ${
-              activeTab === 'Profile' ? 'text-[#1a73e8] scale-105' : 'text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            <User className={`w-5.5 h-5.5 ${activeTab === 'Profile' ? 'stroke-[2.5px]' : 'stroke-2'}`} />
-            <span className="text-[10px] font-bold">Profile</span>
-          </button>
-        </nav>
+              <button
+                onClick={() => {
+                  setActiveTab('Map');
+                  setSelectedIssueFromMap(null);
+                }}
+                className={`flex flex-col items-center space-y-1 transition-all ${
+                  activeTab === 'Map' ? 'text-[#1a73e8] scale-105' : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                <Compass className={`w-5.5 h-5.5 ${activeTab === 'Map' ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+                <span className="text-[10px] font-bold">Map</span>
+              </button>
 
-      </div>
+              <button
+                onClick={() => setActiveTab('Dashboard')}
+                className={`flex flex-col items-center space-y-1 transition-all ${
+                  activeTab === 'Dashboard' ? 'text-[#1a73e8] scale-105' : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                <Layers className={`w-5.5 h-5.5 ${activeTab === 'Dashboard' ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+                <span className="text-[10px] font-bold">Feed</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveTab('Profile');
+                  setSelectedIssueFromMap(null);
+                }}
+                className={`flex flex-col items-center space-y-1 transition-all ${
+                  activeTab === 'Profile' ? 'text-[#1a73e8] scale-105' : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                <User className={`w-5.5 h-5.5 ${activeTab === 'Profile' ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+                <span className="text-[10px] font-bold">Profile</span>
+              </button>
+            </nav>
+
+          </div>
+        </APIProvider>
+      )}
     </div>
   );
 }

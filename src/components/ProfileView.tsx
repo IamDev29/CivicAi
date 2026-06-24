@@ -95,10 +95,10 @@ export default function ProfileView({
               </span>
             </div>
             <p className="text-xs text-white/85 font-semibold mt-0.5">
-              👑 Current Rank: <span className="text-amber-300">#{userStats.rank} in Bengaluru Central</span>
+              👑 Current Rank: <span className="text-amber-300">#{userStats.rank} in Bhubaneswar Central</span>
             </p>
             <p className="text-[10px] text-white/70 mt-1">
-              Bengaluru Ward 80 • Citizen Validator since May 2026
+              Bhubaneswar Ward 42 • Citizen Validator since May 2026
             </p>
           </div>
         </div>
@@ -106,7 +106,7 @@ export default function ProfileView({
         {/* Level bar metrics */}
         <div className="grid grid-cols-3 gap-2 mt-6 pt-4 border-t border-white/10 text-center">
           <div className="bg-white/5 rounded-xl p-2">
-            <p className="text-[9px] text-white/60 font-bold uppercase">BBMP Points</p>
+            <p className="text-[9px] text-white/60 font-bold uppercase">BMC Points</p>
             <p className="text-lg font-black text-amber-300">{userStats.points}</p>
           </div>
           <div className="bg-white/5 rounded-xl p-2">
@@ -125,9 +125,9 @@ export default function ProfileView({
         <div className="flex items-center justify-between border-b border-gray-50 pb-2">
           <h4 className="text-sm font-bold text-gray-900 flex items-center space-x-1.5">
             <Trophy className="w-4 h-4 text-amber-500" />
-            <span>Ward Leaderboard (Bengaluru Central)</span>
+            <span>Ward Leaderboard (Bhubaneswar Central)</span>
           </h4>
-          <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider">BBMP Ward 80</span>
+          <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider">BMC Ward 42</span>
         </div>
 
         <div className="space-y-2">

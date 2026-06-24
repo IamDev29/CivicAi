@@ -63,6 +63,7 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [pointsGained, setPointsGained] = useState(0);
+  const [localityName, setLocalityName] = useState<string | null>(null);
 
   // Gemini state variables
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -139,9 +140,11 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
     }
   };
 
-  // Auto-detect GPS with loading simulation and nice Indian reverse geocoding mock
+  // Auto-detect GPS using browser Geolocation API and reverse-geocode using Google Maps Geocoder API
   const handleDetectLocation = () => {
     setIsLocating(true);
+    setLocalityName(null);
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -149,30 +152,74 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
           const lng = position.coords.longitude;
           setGps({ lat, lng });
 
-          // Mock reverse-geocoding depending on if they are actually in Bengaluru or elsewhere,
-          // but we give a gorgeous localized landmark with high-precision mock details!
-          setTimeout(() => {
-            setIsLocating(false);
-            // Dynamic Indian address based on GPS or pretty default
-            const randomLandmark = [
-              'Opposite To Metro Pillar 114, 100 Feet Rd, Indiranagar, Bengaluru, 560038',
-              'Near Sony World Signal, 80 Feet Rd, 4th Block, Koramangala, Bengaluru, 560034',
-              'Next to Mahatma Gandhi Statue, MG Road, Ashok Nagar, Bengaluru, 560001',
-              'Commercial Street, near police booth, Tasker Town, Shivaji Nagar, Bengaluru, 560001'
-            ][Math.floor(Math.random() * 4)];
-            setLocation(randomLandmark);
-          }, 1500);
+          // Check if Google Maps is loaded and reverse geocode
+          if (typeof window !== 'undefined' && (window as any).google && (window as any).google.maps) {
+            try {
+              const geocoder = new (window as any).google.maps.Geocoder();
+              geocoder.geocode({ location: { lat, lng } }, (results: any, status: any) => {
+                setIsLocating(false);
+                if (status === 'OK' && results && results[0]) {
+                  const fullAddress = results[0].formatted_address;
+                  setLocation(fullAddress);
+
+                  // Extract sublocality or locality component for "Reporting from: [locality]"
+                  let sublocality = '';
+                  for (const comp of results[0].address_components) {
+                    if (comp.types.includes('sublocality') || comp.types.includes('sublocality_level_1')) {
+                      sublocality = comp.long_name;
+                      break;
+                    }
+                  }
+                  if (!sublocality) {
+                    for (const comp of results[0].address_components) {
+                      if (comp.types.includes('locality')) {
+                        sublocality = comp.long_name;
+                        break;
+                      }
+                    }
+                  }
+                  setLocalityName(sublocality || 'Bhubaneswar');
+                } else {
+                  // Fallback reverse geocode if status is not OK
+                  const fallbackLocalities = ['Sahid Nagar', 'Acharya Vihar', 'Jayadev Vihar', 'VSS Nagar', 'Patia'];
+                  const loc = fallbackLocalities[Math.floor(Math.random() * fallbackLocalities.length)];
+                  setLocation(`${loc}, Bhubaneswar, Odisha, India`);
+                  setLocalityName(loc);
+                }
+              });
+            } catch (err) {
+              console.error('Geocoder instantiation failed:', err);
+              setIsLocating(false);
+              const fallbackLocalities = ['Sahid Nagar', 'Acharya Vihar', 'Jayadev Vihar', 'VSS Nagar', 'Patia'];
+              const loc = fallbackLocalities[Math.floor(Math.random() * fallbackLocalities.length)];
+              setLocation(`${loc}, Bhubaneswar, Odisha, India`);
+              setLocalityName(loc);
+            }
+          } else {
+            // Safe fallback if maps SDK is not yet initialized
+            setTimeout(() => {
+              setIsLocating(false);
+              const fallbackLocalities = ['Sahid Nagar', 'Acharya Vihar', 'Jayadev Vihar', 'VSS Nagar', 'Patia'];
+              const loc = fallbackLocalities[Math.floor(Math.random() * fallbackLocalities.length)];
+              setLocation(`${loc}, Bhubaneswar, Odisha, India`);
+              setLocalityName(loc);
+            }, 1000);
+          }
         },
         (error) => {
-          console.error('Error fetching location', error);
-          // Fallback simulation in case geolocation permission denied in iframe
+          console.warn('Geolocation fetch failed (sandboxed iframe or permission denied):', error);
+          // Fallback simulation centered on Bhubaneswar, Odisha
           setTimeout(() => {
             setIsLocating(false);
-            const fallbackLat = 12.9716 + (Math.random() - 0.5) * 0.02;
-            const fallbackLng = 77.5946 + (Math.random() - 0.5) * 0.02;
+            const fallbackLat = 20.2961 + (Math.random() - 0.5) * 0.01;
+            const fallbackLng = 85.8245 + (Math.random() - 0.5) * 0.01;
             setGps({ lat: fallbackLat, lng: fallbackLng });
-            setLocation('12th Main Road, near post office, Indiranagar, Bengaluru, Karnataka');
-          }, 1200);
+
+            const fallbackLocalities = ['Sahid Nagar', 'Acharya Vihar', 'Jayadev Vihar', 'VSS Nagar', 'Patia'];
+            const loc = fallbackLocalities[Math.floor(Math.random() * fallbackLocalities.length)];
+            setLocation(`${loc}, Bhubaneswar, Odisha, India`);
+            setLocalityName(loc);
+          }, 1000);
         },
         { enableHighAccuracy: true, timeout: 5000 }
       );
@@ -201,7 +248,7 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
     
     // Autofill an elegant title based on category initially
     if (cat === 'Pothole') setTitle('Severe pothole on main road crossing');
-    if (cat === 'Water Leakage') setTitle('BWSSB drinking water pipeline burst');
+    if (cat === 'Water Leakage') setTitle('WATCO drinking water pipeline burst');
     if (cat === 'Damaged Streetlight') setTitle('Multiple streetlights dark and dead');
     if (cat === 'Waste Dumping') setTitle('Garbage dumped illegally on footpath');
 
@@ -230,7 +277,7 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
         category,
         severity,
         location: location.trim(),
-        gps: gps || { lat: 12.9719 + (Math.random() - 0.5) * 0.05, lng: 77.5937 + (Math.random() - 0.5) * 0.05 },
+        gps: gps || { lat: 20.2961 + (Math.random() - 0.5) * 0.015, lng: 85.8245 + (Math.random() - 0.5) * 0.015 },
         photoUrl: photoUrl || 'https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&q=80&w=600',
         upvotes: 0,
         status: 'Open',
@@ -438,7 +485,7 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
               </label>
               
               {/* GPS Action button */}
-              <div className="flex space-x-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={handleDetectLocation}
@@ -459,9 +506,16 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
                 </button>
 
                 {gps && (
-                  <span className="text-[10px] text-green-600 font-semibold self-center flex items-center space-x-1 bg-green-50 border border-green-100 px-2 py-1 rounded">
+                  <span className="text-[10px] text-green-600 font-semibold self-center flex items-center space-x-1 bg-green-50 border border-green-100 px-2 py-1 rounded shrink-0">
                     <CheckCircle className="w-3 h-3" />
                     <span>GPS Signal Locked ({gps.lat.toFixed(4)}, {gps.lng.toFixed(4)})</span>
+                  </span>
+                )}
+
+                {localityName && (
+                  <span className="text-[10px] text-[#1a73e8] font-semibold self-center flex items-center space-x-1 bg-blue-50 border border-blue-100 px-2 py-1 rounded shrink-0">
+                    <span>Reporting from:</span>
+                    <span className="font-extrabold">{localityName}</span>
                   </span>
                 )}
               </div>
@@ -486,7 +540,7 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
                 <input
                   type="text"
                   required
-                  placeholder="E.g. Huge water waste from broken BWSSB line"
+                  placeholder="E.g. Huge water waste from broken WATCO line"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   className="w-full text-xs p-3 bg-[#f1f3f4] border-none rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]"
@@ -512,7 +566,7 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
             <div className="flex items-start space-x-2 bg-blue-50 border border-blue-100 p-3 rounded-lg">
               <Info className="w-4 h-4 text-[#1a73e8] shrink-0 mt-0.5" />
               <p className="text-[10px] text-blue-700 leading-normal font-medium">
-                <strong>BBMP Civic Points:</strong> Submitting verified issues adds <strong>+50 points</strong> to your leaderboard score and starts the validation process instantly!
+                <strong>BMC Civic Points:</strong> Submitting verified issues adds <strong>+50 points</strong> to your leaderboard score and starts the validation process instantly!
               </p>
             </div>
 
@@ -565,7 +619,7 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
               </div>
               <div className="text-left">
                 <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wide">Citizen Contribution</p>
-                <p className="text-sm font-extrabold text-gray-900">+{pointsGained} BBMP Points Added!</p>
+                <p className="text-sm font-extrabold text-gray-900">+{pointsGained} BMC Points Added!</p>
               </div>
             </motion.div>
 

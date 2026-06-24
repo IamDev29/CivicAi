@@ -9,11 +9,11 @@ export const INITIAL_ISSUES: CivicIssue[] = [
   {
     id: 'issue-1',
     title: 'Huge pothole dangerous for two-wheelers',
-    description: 'This deep pothole has been active for 3 weeks on the 12th Main cross junction. During rain, it fills up with water and is completely invisible. Several motorists have slipped here already.',
+    description: 'This deep pothole has been active for 3 weeks on the Sahid Nagar crossing junction. During rain, it fills up with water and is completely invisible. Several motorists have slipped here already.',
     category: 'Pothole',
     severity: 'High',
-    location: '12th Main Rd, Indiranagar, Bengaluru',
-    gps: { lat: 12.9719, lng: 77.6412 },
+    location: 'Sahid Nagar, Bhubaneswar, Odisha',
+    gps: { lat: 20.2970, lng: 85.8260 },
     photoUrl: 'https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&q=80&w=600',
     upvotes: 42,
     status: 'In Progress',
@@ -28,7 +28,7 @@ export const INITIAL_ISSUES: CivicIssue[] = [
       },
       {
         id: 'c-2',
-        userName: 'BBMP Ward Inspector (System)',
+        userName: 'BMC Ward Inspector (System)',
         text: 'Issue assigned to the road maintenance engineer for Ward 80.',
         date: '2026-06-22'
       }
@@ -40,8 +40,8 @@ export const INITIAL_ISSUES: CivicIssue[] = [
     description: 'Fresh clean drinking water is gushing out from a ruptured underground pipe near the park gate. It has flooded the walking path and is attracting mosquitoes.',
     category: 'Water Leakage',
     severity: 'Medium',
-    location: '3rd Block Park, Koramangala, Bengaluru',
-    gps: { lat: 12.9352, lng: 77.6244 },
+    location: 'Acharya Vihar, Bhubaneswar, Odisha',
+    gps: { lat: 20.2940, lng: 85.8220 },
     photoUrl: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&q=80&w=600',
     upvotes: 28,
     status: 'Open',
@@ -51,7 +51,7 @@ export const INITIAL_ISSUES: CivicIssue[] = [
       {
         id: 'c-3',
         userName: 'Rohan Deshmukh',
-        text: 'Such a tragedy to see drinking water being wasted. BWSSB needs to look into this immediately.',
+        text: 'Such a tragedy to see drinking water being wasted. WATCO needs to look into this immediately.',
         date: '2026-06-23'
       }
     ]
@@ -62,8 +62,8 @@ export const INITIAL_ISSUES: CivicIssue[] = [
     description: 'An entire stretch of 5 streetlights is completely dead. The lane is pitch black after 7 PM, making it extremely unsafe for women and children returning from the metro station.',
     category: 'Damaged Streetlight',
     severity: 'High',
-    location: 'Metro Station Exit Road, MG Road, Bengaluru',
-    gps: { lat: 12.9756, lng: 77.6067 },
+    location: 'Jayadev Vihar, Bhubaneswar, Odisha',
+    gps: { lat: 20.2920, lng: 85.8290 },
     photoUrl: 'https://images.unsplash.com/photo-1509024644558-2f56ce76c490?auto=format&fit=crop&q=80&w=600',
     upvotes: 61,
     status: 'Open',
@@ -90,8 +90,8 @@ export const INITIAL_ISSUES: CivicIssue[] = [
     description: 'Commercial waste and plastic bags are being dumped on the pedestrian walkway, blocking the path entirely and creating a heavy stench.',
     category: 'Waste Dumping',
     severity: 'Medium',
-    location: 'Commercial Street Corner, Shivaji Nagar, Bengaluru',
-    gps: { lat: 12.9856, lng: 77.6057 },
+    location: 'VSS Nagar, Bhubaneswar, Odisha',
+    gps: { lat: 20.3010, lng: 85.8210 },
     photoUrl: 'https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?auto=format&fit=crop&q=80&w=600',
     upvotes: 19,
     status: 'Resolved',
