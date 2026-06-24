@@ -18,9 +18,23 @@ import {
   Search,
   Filter,
   Users,
-  Award
+  Award,
+  Sparkles,
+  Layers,
+  AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { 
+  ResponsiveContainer, 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  Tooltip, 
+  LineChart, 
+  Line, 
+  CartesianGrid 
+} from 'recharts';
 import { CivicIssue, IssueCategory, IssueStatus } from '../types';
 
 interface IssuesFeedProps {
@@ -43,9 +57,46 @@ export default function IssuesFeed({
   const [expandedIssueId, setExpandedIssueId] = useState<string | null>(null);
   const [newCommentTexts, setNewCommentTexts] = useState<{ [key: string]: string }>({});
 
+  // Sub-tab state
+  const [subTab, setSubTab] = useState<'Feed' | 'Insights'>('Feed');
+
+  // AI Insights State
+  const [insights, setInsights] = useState<any>(null);
+  const [isInsightsLoading, setIsInsightsLoading] = useState(false);
+  const [insightsError, setInsightsError] = useState<string | null>(null);
+
+  const fetchInsights = async () => {
+    setIsInsightsLoading(true);
+    setInsightsError(null);
+    try {
+      const res = await fetch('/api/gemini/insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ issues })
+      });
+      if (!res.ok) {
+        throw new Error('Failed to fetch AI insights analysis');
+      }
+      const data = await res.json();
+      setInsights(data);
+    } catch (err: any) {
+      console.error(err);
+      setInsightsError(err.message || 'Failed to retrieve predictive insights');
+    } finally {
+      setIsInsightsLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (subTab === 'Insights') {
+      fetchInsights();
+    }
+  }, [subTab, issues]);
+
   // Auto-expand issue if selected from the Map tab
   React.useEffect(() => {
     if (selectedIssueFromMap) {
+      setSubTab('Feed');
       setExpandedIssueId(selectedIssueFromMap.id);
       // Clear it after expanding to let user collapse it freely
       if (clearSelectedIssueFromMap) clearSelectedIssueFromMap();
@@ -158,7 +209,31 @@ export default function IssuesFeed({
         </div>
       </div>
 
-      {/* 2. Filter & Search Utility Bar */}
+      {/* Subtab Navigation: Feed vs Insights */}
+      <div className="flex p-1 bg-gray-100 rounded-xl">
+        <button
+          onClick={() => setSubTab('Feed')}
+          className={`flex-1 py-2 text-center rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer ${
+            subTab === 'Feed' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'
+          }`}
+        >
+          <Layers className="w-4 h-4" />
+          <span>Community Feed</span>
+        </button>
+        <button
+          onClick={() => setSubTab('Insights')}
+          className={`flex-1 py-2 text-center rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer ${
+            subTab === 'Insights' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'
+          }`}
+        >
+          <Sparkles className="w-4 h-4 text-purple-500 fill-purple-500/20" />
+          <span>AI Insights 🔮</span>
+        </button>
+      </div>
+
+      {subTab === 'Feed' ? (
+        <>
+          {/* 2. Filter & Search Utility Bar */}
       <div className="bg-white rounded-xl border border-gray-100 p-3 shadow-2xs space-y-3">
         {/* Search */}
         <div className="relative">
@@ -329,6 +404,19 @@ export default function IssuesFeed({
                           </span>
                         </div>
 
+                        {/* Tracking ID & Department Metadata */}
+                        <div className="flex flex-wrap gap-2 p-2.5 bg-[#1a73e8]/5 rounded-xl border border-[#1a73e8]/10 text-xs">
+                          <span className="font-extrabold text-[#1a73e8]">AI Route Details:</span>
+                          <span className="font-mono bg-white px-1.5 py-0.5 rounded border border-gray-100 shadow-3xs text-gray-700">
+                            Tracking ID: {issue.id.startsWith('issue-') ? `CIVIC-2025-${issue.id.slice(-4).toUpperCase()}` : issue.id}
+                          </span>
+                          <span className="font-bold text-gray-600 bg-white px-1.5 py-0.5 rounded border border-gray-100 shadow-3xs">
+                            Dept: {issue.category === 'Pothole' || issue.category === 'Broken Footpath' ? 'PWD' : 
+                                   issue.category === 'Water Leakage' ? 'Water Board' : 
+                                   issue.category === 'Damaged Streetlight' ? 'Electricity Board' : 'Municipal Corporation'}
+                          </span>
+                        </div>
+
                         {/* Extended Description */}
                         <div className="space-y-1.5">
                           <p className="text-xs font-bold text-gray-700">Detailed Description:</p>
@@ -396,6 +484,117 @@ export default function IssuesFeed({
           </div>
         )}
       </div>
+        </>
+      ) : (
+        /* Predictive Insights Tab */
+        <div className="space-y-5 pb-8">
+          {isInsightsLoading ? (
+            <div className="bg-white rounded-xl border border-gray-100 p-8 text-center space-y-4 shadow-2xs">
+              <div className="relative w-16 h-16 mx-auto flex items-center justify-center bg-blue-50 text-[#1a73e8] rounded-full animate-pulse">
+                <Sparkles className="w-8 h-8 animate-spin" style={{ animationDuration: '3s' }} />
+              </div>
+              <div className="space-y-1.5">
+                <h3 className="text-sm font-extrabold text-gray-900">AI insights analyst is thinking...</h3>
+                <p className="text-xs text-gray-500 leading-normal max-w-xs mx-auto">
+                  Aggregating civic dataset, sorting categories, assessing high-risk wards, and formulating predictive municipal forecasts...
+                </p>
+              </div>
+              <div className="flex justify-center space-x-1">
+                <div className="w-2 h-2 bg-[#1a73e8] rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                <div className="w-2 h-2 bg-[#1a73e8] rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                <div className="w-2 h-2 bg-[#1a73e8] rounded-full animate-bounce"></div>
+              </div>
+            </div>
+          ) : insightsError ? (
+            <div className="bg-red-50 text-red-700 p-4 rounded-xl border border-red-200 text-xs font-medium text-center space-y-2">
+              <AlertCircle className="w-6 h-6 mx-auto text-red-500" />
+              <p>{insightsError}</p>
+              <button 
+                onClick={fetchInsights}
+                className="bg-red-700 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer animate-pulse"
+              >
+                Retry Analysis
+              </button>
+            </div>
+          ) : insights ? (
+            <div className="space-y-4">
+              {/* Natural Language Summary Card */}
+              <div className="bg-[#1a73e8]/5 border border-[#1a73e8]/10 rounded-2xl p-4 space-y-2 shadow-3xs">
+                <div className="flex items-center space-x-2 text-[#1a73e8]">
+                  <Sparkles className="w-4 h-4 fill-[#1a73e8]/20" />
+                  <span className="text-xs font-extrabold uppercase tracking-wider">AI Analytical Summary</span>
+                </div>
+                <p className="text-xs text-gray-700 leading-relaxed font-semibold">
+                  {insights.naturalLanguageSummary}
+                </p>
+              </div>
+
+              {/* Bento-grid KPIs */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white p-3.5 rounded-xl border border-gray-100 shadow-2xs space-y-1">
+                  <span className="text-[9px] font-extrabold text-gray-400 uppercase tracking-wider">Highest Density Ward</span>
+                  <p className="text-xs font-black text-gray-900 mt-1">{insights.topLocality}</p>
+                </div>
+
+                <div className="bg-white p-3.5 rounded-xl border border-gray-100 shadow-2xs space-y-1">
+                  <span className="text-[9px] font-extrabold text-gray-400 uppercase tracking-wider">Top 3 Concerns</span>
+                  <div className="mt-1 space-y-0.5">
+                    {insights.top3Categories.map((cat: string, idx: number) => (
+                      <p key={idx} className="text-[10px] font-bold text-red-600 truncate">
+                        {idx + 1}. {cat}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="col-span-2 bg-white p-3.5 rounded-xl border border-gray-100 shadow-2xs space-y-1">
+                  <span className="text-[9px] font-extrabold text-gray-400 uppercase tracking-wider">Predictive Foresight (Next Month)</span>
+                  <p className="text-xs text-gray-700 mt-1 font-medium leading-relaxed">
+                    {insights.predictedNextMonth}
+                  </p>
+                </div>
+              </div>
+
+              {/* Bar Chart */}
+              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-2xs space-y-2">
+                <div className="flex items-center space-x-1.5 text-gray-800">
+                  <TrendingUp className="w-4 h-4 text-gray-600" />
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider">Issues by Category</h3>
+                </div>
+                <div className="h-44 text-[9px] font-mono">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={insights.categoryStats} margin={{ top: 10, right: 10, left: -25, bottom: 5 }}>
+                      <XAxis dataKey="category" stroke="#888888" fontSize={9} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#888888" fontSize={9} tickLine={false} axisLine={false} allowDecimals={false} />
+                      <Tooltip contentStyle={{ fontSize: '10px', borderRadius: '8px' }} />
+                      <Bar dataKey="count" fill="#1a73e8" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Line Chart */}
+              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-2xs space-y-2">
+                <div className="flex items-center space-x-1.5 text-gray-800">
+                  <Clock className="w-4 h-4 text-gray-600" />
+                  <h3 className="text-xs font-extrabold uppercase tracking-wider">Weekly Report Trend</h3>
+                </div>
+                <div className="h-44 text-[9px] font-mono">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={insights.weeklyTrend} margin={{ top: 10, right: 10, left: -25, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                      <XAxis dataKey="week" stroke="#888888" fontSize={9} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#888888" fontSize={9} tickLine={false} axisLine={false} allowDecimals={false} />
+                      <Tooltip contentStyle={{ fontSize: '10px', borderRadius: '8px' }} />
+                      <Line type="monotone" dataKey="count" stroke="#10b981" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      )}
 
     </div>
   );
