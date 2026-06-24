@@ -32,6 +32,13 @@ export interface CivicIssue {
   reporterName: string;
   comments: Comment[];
   hasUpvoted?: boolean;
+  isAiVerified?: boolean;
+  aiTrustScore?: number;
+  aiAnalysisFeedback?: string;
+  yesVotes?: number;
+  noVotes?: number;
+  userVotedYes?: boolean;
+  userVotedNo?: boolean;
 }
 
 export interface LeaderboardUser {
@@ -50,4 +57,6 @@ export interface UserStats {
   reportsCount: number;
   resolvedCount: number;
   level: number;
+  upvotesGiven?: number;
+  badges?: string[];
 }

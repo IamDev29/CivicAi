@@ -27,6 +27,7 @@ import ReportForm from './components/ReportForm';
 import InteractiveMap from './components/InteractiveMap';
 import IssuesFeed from './components/IssuesFeed';
 import ProfileView from './components/ProfileView';
+import OnboardingModal from './components/OnboardingModal';
 import { APIProvider } from '@vis.gl/react-google-maps';
 
 const API_KEY =
@@ -41,6 +42,13 @@ export default function App() {
   const [issues, setIssues] = useState<CivicIssue[]>(INITIAL_ISSUES);
   const [userStats, setUserStats] = useState<UserStats>(MOCK_USER_STATS);
   const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>(MOCK_LEADERBOARD);
+  
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return !localStorage.getItem('civic_onboarding_completed');
+    }
+    return true;
+  });
   
   // Selected issue from Map to auto-expand in Dashboard
   const [selectedIssueFromMap, setSelectedIssueFromMap] = useState<CivicIssue | null>(null);
@@ -119,25 +127,43 @@ export default function App() {
   };
 
   // Handle a new issue submission from Report tab
-  const handleSubmitIssue = (newIssueData: Partial<CivicIssue>) => {
-    const formattedIssue: CivicIssue = {
-      id: `issue-${Date.now()}`,
-      title: newIssueData.title || 'Untitled Issue',
-      description: newIssueData.description || '',
-      category: newIssueData.category || 'Pothole',
-      severity: newIssueData.severity || 'Medium',
-      location: newIssueData.location || '',
-      gps: newIssueData.gps || null,
-      photoUrl: newIssueData.photoUrl || 'https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&q=80&w=600',
-      upvotes: 0,
-      status: 'Open',
-      date: new Date().toISOString().split('T')[0],
-      reporterName: 'You (Ankit Kumar)',
-      comments: []
-    };
+  const handleSubmitIssue = (newIssueData: Partial<CivicIssue>, routeResult?: any) => {
+    if (routeResult?.status === 'duplicate') {
+      const duplicateId = routeResult.duplicateIssueId;
+      setIssues(prev => {
+        return prev.map(issue => {
+          if (issue.id === duplicateId) {
+            return {
+              ...issue,
+              upvotes: issue.hasUpvoted ? issue.upvotes : issue.upvotes + 1,
+              hasUpvoted: true
+            };
+          }
+          return issue;
+        });
+      });
+      triggerAlert('Matched duplicate report! Your upvote has been merged automatically. 🔔');
+    } else {
+      const trackingId = routeResult?.trackingId || `issue-${Date.now()}`;
+      const formattedIssue: CivicIssue = {
+        id: trackingId,
+        title: newIssueData.title || 'Untitled Issue',
+        description: newIssueData.description || '',
+        category: newIssueData.category || 'Pothole',
+        severity: newIssueData.severity || 'Medium',
+        location: newIssueData.location || '',
+        gps: newIssueData.gps || null,
+        photoUrl: newIssueData.photoUrl || 'https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&q=80&w=600',
+        upvotes: 0,
+        status: 'Open',
+        date: new Date().toISOString().split('T')[0],
+        reporterName: 'You (Ankit Kumar)',
+        comments: []
+      };
 
-    // Prepend to issue list
-    setIssues(prev => [formattedIssue, ...prev]);
+      // Prepend to issue list
+      setIssues(prev => [formattedIssue, ...prev]);
+    }
 
     // Automatically transition to the Dashboard tab so they can see their report
     setTimeout(() => {
@@ -259,6 +285,18 @@ export default function App() {
             {/* Sticky Header */}
             <Header />
 
+            {/* Onboarding Screen for First-Time Users */}
+            <AnimatePresence>
+              {showOnboarding && (
+                <OnboardingModal 
+                  onComplete={() => {
+                    localStorage.setItem('civic_onboarding_completed', 'true');
+                    setShowOnboarding(false);
+                  }}
+                />
+              )}
+            </AnimatePresence>
+
             {/* Gamification Indicator Strip */}
             <GamificationStrip 
               points={userStats.points}
@@ -340,6 +378,7 @@ export default function App() {
                     <ReportForm 
                       onSubmitIssue={handleSubmitIssue}
                       onAddPoints={handleAddPoints}
+                      issues={issues}
                     />
                   )}
 
@@ -372,6 +411,8 @@ export default function App() {
                   )}
                 </motion.div>
               </AnimatePresence>
+
+
             </main>
 
             {/* 

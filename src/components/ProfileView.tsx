@@ -27,41 +27,6 @@ interface ProfileViewProps {
   onSwitchTab: (tab: string) => void;
 }
 
-const ACHIEVEMENTS = [
-  {
-    id: 'ach-1',
-    title: 'Pothole Sentinel',
-    description: 'Report or upvote at least 3 pothole hazard spots',
-    icon: '🕳️',
-    unlocked: true,
-    rewardPoints: 100
-  },
-  {
-    id: 'ach-2',
-    title: 'Aqua Guardian',
-    description: 'Report a drinking water leakage and save water wasting',
-    icon: '💧',
-    unlocked: true,
-    rewardPoints: 150
-  },
-  {
-    id: 'ach-3',
-    title: 'Midnight Watcher',
-    description: 'Report dead streetlights to restore nighttime lane security',
-    icon: '💡',
-    unlocked: false,
-    rewardPoints: 200
-  },
-  {
-    id: 'ach-4',
-    title: 'Eco Marshal',
-    description: 'Successfully resolve a neighborhood garbage dumping issue',
-    icon: '🗑️',
-    unlocked: true,
-    rewardPoints: 100
-  }
-];
-
 export default function ProfileView({
   userStats,
   leaderboard,
@@ -70,6 +35,53 @@ export default function ProfileView({
   onSwitchTab
 }: ProfileViewProps) {
   
+  const reportsCount = userStats.reportsCount;
+  const resolvedCount = userStats.resolvedCount;
+  const upvotesGiven = userStats.upvotesGiven || 0;
+
+  const BADGES_LIST = [
+    {
+      id: 'badge-first-reporter',
+      title: 'First Reporter',
+      description: 'First issue reported in an area.',
+      unlocked: reportsCount >= 1,
+      metric: `${Math.min(reportsCount, 1)}/1 report`,
+      percent: Math.min((reportsCount / 1) * 100, 100),
+      icon: '🥇',
+      color: 'from-amber-400 to-yellow-600'
+    },
+    {
+      id: 'badge-watchdog',
+      title: 'Watchdog',
+      description: 'Logged 10+ reports across Bhubaneswar.',
+      unlocked: reportsCount >= 10,
+      metric: `${reportsCount}/10 reports`,
+      percent: Math.min((reportsCount / 10) * 100, 100),
+      icon: '🐕',
+      color: 'from-blue-400 to-indigo-600'
+    },
+    {
+      id: 'badge-hero',
+      title: 'Hero',
+      description: 'Granted to citizens with resolved reports.',
+      unlocked: resolvedCount >= 1,
+      metric: `${resolvedCount}/1 resolved`,
+      percent: Math.min((resolvedCount / 1) * 100, 100),
+      icon: '🦸‍♂️',
+      color: 'from-emerald-400 to-teal-600'
+    },
+    {
+      id: 'badge-validator',
+      title: 'Validator',
+      description: 'Voted on 50+ community street spots.',
+      unlocked: upvotesGiven >= 50,
+      metric: `${upvotesGiven}/50 upvotes`,
+      percent: Math.min((upvotesGiven / 50) * 100, 100),
+      icon: '⚡',
+      color: 'from-purple-400 to-fuchsia-600'
+    }
+  ];
+
   return (
     <div className="space-y-6 max-w-lg mx-auto pb-10">
       
@@ -176,34 +188,48 @@ export default function ProfileView({
       <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-xs space-y-3">
         <h4 className="text-sm font-bold text-gray-900 flex items-center space-x-1.5 border-b border-gray-50 pb-2">
           <Award className="w-4 h-4 text-[#1a73e8]" />
-          <span>My Civic Achievements</span>
+          <span>My Civic Achievements & Badges</span>
         </h4>
 
         <div className="grid grid-cols-2 gap-3">
-          {ACHIEVEMENTS.map((ach) => (
+          {BADGES_LIST.map((ach) => (
             <div 
               key={ach.id}
-              className={`p-3 rounded-xl border flex flex-col justify-between h-28 relative overflow-hidden ${
+              className={`p-3 rounded-xl border flex flex-col justify-between h-36 relative overflow-hidden transition-all ${
                 ach.unlocked 
-                  ? 'bg-emerald-50/20 border-emerald-100' 
+                  ? 'bg-emerald-50/25 border-emerald-200 shadow-2xs' 
                   : 'bg-gray-50/50 border-gray-100 opacity-65'
               }`}
             >
               {/* Overlay Checkmark */}
-              {ach.unlocked && (
-                <div className="absolute right-2 top-2 text-emerald-600 bg-emerald-100 p-0.5 rounded-full">
+              {ach.unlocked ? (
+                <div className="absolute right-2.5 top-2.5 text-emerald-600 bg-emerald-100 p-0.5 rounded-full shadow-3xs">
                   <ShieldCheck className="w-3 h-3" />
+                </div>
+              ) : (
+                <div className="absolute right-2.5 top-2.5 text-gray-400 bg-gray-200/60 p-0.5 rounded-full">
+                  <Target className="w-3 h-3" />
                 </div>
               )}
 
               <div>
                 <span className="text-xl mb-1.5 block">{ach.icon}</span>
                 <h5 className="text-[11px] font-extrabold text-gray-900 truncate">{ach.title}</h5>
-                <p className="text-[9px] text-gray-500 leading-snug mt-0.5 line-clamp-2">{ach.description}</p>
+                <p className="text-[9px] text-gray-500 leading-normal mt-0.5 line-clamp-2">{ach.description}</p>
               </div>
 
-              <div className="text-[9px] font-bold text-[#1a73e8] mt-2 bg-white px-1.5 py-0.5 rounded-sm border border-gray-100 self-start">
-                +{ach.rewardPoints} XP
+              {/* Progress Bar */}
+              <div className="space-y-1">
+                <div className="flex justify-between items-center text-[8px] font-bold text-gray-400">
+                  <span>Progress</span>
+                  <span className={ach.unlocked ? 'text-emerald-600 font-extrabold' : 'text-gray-500'}>{ach.metric}</span>
+                </div>
+                <div className="w-full bg-gray-200 h-1 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full transition-all duration-500 bg-linear-to-r ${ach.unlocked ? ach.color : 'from-gray-400 to-gray-500'}`}
+                    style={{ width: `${ach.percent}%` }}
+                  />
+                </div>
               </div>
             </div>
           ))}

@@ -120,7 +120,11 @@ export const MOCK_LEADERBOARD: LeaderboardUser[] = [
   { rank: 3, name: 'Amit Patil', points: 950, badge: 'Pavement Guardian 🛡️' },
   { rank: 4, name: 'You (Ankit Kumar)', points: 450, badge: 'Active Citizen ⭐', isCurrentUser: true },
   { rank: 5, name: 'Sunita Rao', points: 410, badge: 'Eco Warrior 🌿' },
-  { rank: 6, name: 'Sandeep V', points: 320, badge: 'Street Watcher 👁️' }
+  { rank: 6, name: 'Sandeep V', points: 320, badge: 'Street Watcher 👁️' },
+  { rank: 7, name: 'Priya Nair', points: 290, badge: 'Pothole Patrol 🚨' },
+  { rank: 8, name: 'Rohan Deshmukh', points: 240, badge: 'Water Savior 💧' },
+  { rank: 9, name: 'Vikram Malhotra', points: 180, badge: 'Light Bringer 💡' },
+  { rank: 10, name: 'Meera Sen', points: 120, badge: 'Clean Marshal 🗑️' }
 ];
 
 export const MOCK_USER_STATS: UserStats = {
@@ -130,5 +134,7 @@ export const MOCK_USER_STATS: UserStats = {
   rank: 4,
   reportsCount: 5,
   resolvedCount: 3,
-  level: 3
+  level: 3,
+  upvotesGiven: 12,
+  badges: ['First Reporter', 'Hero']
 };

@@ -21,7 +21,8 @@ import {
   Award,
   Sparkles,
   Layers,
-  AlertTriangle
+  AlertTriangle,
+  Share2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -43,6 +44,8 @@ interface IssuesFeedProps {
   onAddComment: (issueId: string, commentText: string) => void;
   selectedIssueFromMap?: CivicIssue | null;
   clearSelectedIssueFromMap?: () => void;
+  onResolveIssue?: (id: string) => void;
+  triggerAlert?: (msg: string) => void;
 }
 
 export default function IssuesFeed({
@@ -50,15 +53,18 @@ export default function IssuesFeed({
   onUpvoteIssue,
   onAddComment,
   selectedIssueFromMap,
-  clearSelectedIssueFromMap
+  clearSelectedIssueFromMap,
+  onResolveIssue,
+  triggerAlert
 }: IssuesFeedProps) {
   const [selectedCategory, setSelectedCategory] = useState<IssueCategory | 'All'>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedIssueId, setExpandedIssueId] = useState<string | null>(null);
   const [newCommentTexts, setNewCommentTexts] = useState<{ [key: string]: string }>({});
+  const [copiedIssueId, setCopiedIssueId] = useState<string | null>(null);
 
   // Sub-tab state
-  const [subTab, setSubTab] = useState<'Feed' | 'Insights'>('Feed');
+  const [subTab, setSubTab] = useState<'Feed' | 'Insights' | 'Validate'>('Feed');
 
   // AI Insights State
   const [insights, setInsights] = useState<any>(null);
@@ -116,6 +122,10 @@ export default function IssuesFeed({
       issue.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       issue.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       issue.location.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (subTab === 'Validate') {
+      return matchesCategory && matchesSearch && issue.status !== 'Resolved' && issue.upvotes < 5;
+    }
     return matchesCategory && matchesSearch;
   });
 
@@ -209,7 +219,7 @@ export default function IssuesFeed({
         </div>
       </div>
 
-      {/* Subtab Navigation: Feed vs Insights */}
+      {/* Subtab Navigation: Feed vs Validate vs Insights */}
       <div className="flex p-1 bg-gray-100 rounded-xl">
         <button
           onClick={() => setSubTab('Feed')}
@@ -219,6 +229,20 @@ export default function IssuesFeed({
         >
           <Layers className="w-4 h-4" />
           <span>Community Feed</span>
+        </button>
+        <button
+          onClick={() => setSubTab('Validate')}
+          className={`flex-1 py-2 text-center rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer ${
+            subTab === 'Validate' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'
+          }`}
+        >
+          <CheckCircle className="w-4 h-4 text-emerald-500" />
+          <span className="relative">
+            Validate Spots
+            {issues.filter(i => i.status !== 'Resolved' && i.upvotes < 5 && !i.hasUpvoted).length > 0 && (
+              <span className="absolute -top-1 -right-2 w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+            )}
+          </span>
         </button>
         <button
           onClick={() => setSubTab('Insights')}
@@ -231,8 +255,39 @@ export default function IssuesFeed({
         </button>
       </div>
 
-      {subTab === 'Feed' ? (
+      {subTab !== 'Insights' ? (
         <>
+          {/* Environmental & Civic Impact Dashboard */}
+          <div className="bg-linear-to-r from-emerald-600 to-teal-700 text-white rounded-2xl p-4 shadow-sm relative overflow-hidden space-y-3">
+            <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-24 h-24 bg-white/10 rounded-full blur-lg"></div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-1.5">
+                <Award className="w-5 h-5 text-amber-300 fill-amber-300/20 animate-pulse" />
+                <h3 className="text-xs font-black uppercase tracking-wider">Bhubaneswar Green Impact</h3>
+              </div>
+              <span className="bg-white/20 text-white font-extrabold text-[8px] px-2 py-0.5 rounded-full uppercase tracking-widest">Live Ward 42</span>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-2 text-center pt-1">
+              <div className="bg-white/10 rounded-xl p-2 border border-white/10">
+                <span className="text-[8px] text-emerald-100 font-extrabold uppercase tracking-wide block">CO2 Saved Estimate</span>
+                <span className="text-base font-black text-amber-300 block mt-0.5">{resolvedCount * 20}kg</span>
+                <span className="text-[7px] text-emerald-150 leading-none block mt-0.5">Vehicle damage prevented</span>
+              </div>
+              
+              <div className="bg-white/10 rounded-xl p-2 border border-white/10">
+                <span className="text-[8px] text-emerald-100 font-extrabold uppercase tracking-wide block">Hazards Resolved</span>
+                <span className="text-base font-black text-white block mt-0.5">{totalIssuesCount > 0 ? Math.round((resolvedCount / totalIssuesCount) * 100) : 0}%</span>
+                <span className="text-[7px] text-emerald-150 leading-none block mt-0.5">{resolvedCount} of {totalIssuesCount} spots fixed</span>
+              </div>
+
+              <div className="bg-white/10 rounded-xl p-2 border border-white/10">
+                <span className="text-[8px] text-emerald-100 font-extrabold uppercase tracking-wide block">Avg Resolution Time</span>
+                <span className="text-base font-black text-emerald-200 block mt-0.5">4.2 Days</span>
+                <span className="text-[7px] text-emerald-150 leading-none block mt-0.5">Against 14d city standard</span>
+              </div>
+            </div>
+          </div>
           {/* 2. Filter & Search Utility Bar */}
       <div className="bg-white rounded-xl border border-gray-100 p-3 shadow-2xs space-y-3">
         {/* Search */}
@@ -303,13 +358,18 @@ export default function IssuesFeed({
                   <div className="absolute inset-0 bg-linear-to-t from-black/50 via-transparent to-transparent"></div>
 
                   {/* Badges */}
-                  <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+                  <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[85%]">
                     <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border shadow-xs ${getCategoryColor(issue.category)}`}>
                       {getCategoryIcon(issue.category)} {issue.category}
                     </span>
                     <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border shadow-xs ${getSeverityStyle(issue.severity)}`}>
                       {issue.severity} Severity
                     </span>
+                    {issue.upvotes >= 5 && (
+                      <span className="text-[10px] bg-emerald-600 border border-emerald-500 text-white font-extrabold px-2.5 py-1 rounded-full shadow-md flex items-center space-x-1">
+                        <span>🛡️ Community Verified</span>
+                      </span>
+                    )}
                   </div>
 
                   <div className="absolute bottom-3 left-3 right-3 flex justify-between items-end">
@@ -325,6 +385,32 @@ export default function IssuesFeed({
                     </span>
                   </div>
                 </div>
+
+                {/* AI trust check banner */}
+                {(() => {
+                  const score = issue.aiTrustScore ?? (issue.id === 'issue-3' ? 95 : issue.id === 'issue-1' ? 91 : issue.id === 'issue-2' ? 84 : 45);
+                  const feedback = issue.aiAnalysisFeedback ?? "AI system verified reported category matches visual details.";
+                  const isVerified = score >= 70;
+                  return (
+                    <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center justify-between text-xs">
+                      <div className="flex items-center space-x-1.5 shrink-0">
+                        {isVerified ? (
+                          <span className="bg-emerald-100 text-emerald-800 font-extrabold px-2 py-0.5 rounded-sm text-[9px] flex items-center space-x-1">
+                            <span>AI Verified ✓</span>
+                          </span>
+                        ) : (
+                          <span className="bg-amber-100 text-amber-800 font-extrabold px-2 py-0.5 rounded-sm text-[9px] flex items-center space-x-1 animate-pulse">
+                            <span>Needs Review ⚠️</span>
+                          </span>
+                        )}
+                        <span className="text-[10px] text-gray-500 font-bold">Trust: {score}%</span>
+                      </div>
+                      <span className="text-[9px] text-gray-400 font-semibold truncate max-w-[200px] text-right" title={feedback}>
+                        {feedback}
+                      </span>
+                    </div>
+                  );
+                })()}
 
                 {/* Card Info Content */}
                 <div className="p-4 space-y-2">
@@ -370,6 +456,23 @@ export default function IssuesFeed({
                         <MessageSquare className="w-3.5 h-3.5" />
                         <span>{issue.comments.length} Comments</span>
                       </button>
+
+                      {/* Share Issue button */}
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const mockUrl = `https://civicai.bhubaneswar.gov.in/issue/${issue.id}`;
+                          navigator.clipboard.writeText(mockUrl).then(() => {
+                            setCopiedIssueId(issue.id);
+                            setTimeout(() => setCopiedIssueId(null), 2000);
+                          });
+                        }}
+                        className="flex items-center space-x-1.5 text-gray-500 hover:text-gray-700 font-medium relative cursor-pointer"
+                        title="Share this report"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                        <span>{copiedIssueId === issue.id ? 'Copied! 📋' : 'Share'}</span>
+                      </button>
                     </div>
 
                     {/* Expand Toggle */}
@@ -394,6 +497,68 @@ export default function IssuesFeed({
                       className="border-t border-gray-100 bg-gray-50/50 overflow-hidden"
                     >
                       <div className="p-4 space-y-4">
+                        {/* Timeline Progress View */}
+                        {(() => {
+                          const isVerified = issue.upvotes >= 5 || (issue.aiTrustScore !== undefined ? issue.aiTrustScore >= 70 : false) || issue.status === 'In Progress' || issue.status === 'Resolved';
+                          const isAssigned = isVerified || issue.status === 'In Progress' || issue.status === 'Resolved';
+                          const isInProgress = issue.status === 'In Progress' || issue.status === 'Resolved';
+                          const isResolved = issue.status === 'Resolved';
+
+                          const steps = [
+                            { label: 'Reported', completed: true },
+                            { label: 'Verified', completed: isVerified },
+                            { label: 'Assigned', completed: isAssigned },
+                            { label: 'In Progress', completed: isInProgress },
+                            { label: 'Resolved', completed: isResolved }
+                          ];
+
+                          const activeStepIndex = isResolved ? 4 : isInProgress ? 3 : isAssigned ? 2 : isVerified ? 1 : 0;
+
+                          return (
+                            <div className="bg-white p-3 rounded-xl border border-gray-150 shadow-3xs space-y-2.5">
+                              <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Hazard Progress Timeline</p>
+                              
+                              <div className="relative w-full py-1">
+                                {/* Connector Line */}
+                                <div className="absolute top-[13px] left-[8%] right-[8%] h-[2px] bg-gray-100 -translate-y-1/2 z-0">
+                                  <div 
+                                    className="h-full bg-blue-600 transition-all duration-500"
+                                    style={{ 
+                                      width: `${(activeStepIndex / 4) * 100}%` 
+                                    }}
+                                  />
+                                </div>
+                                
+                                {/* Steps dots */}
+                                <div className="relative z-10 flex justify-between">
+                                  {steps.map((step, idx) => {
+                                    const completed = step.completed;
+                                    const current = idx === activeStepIndex;
+                                    return (
+                                      <div key={idx} className="flex flex-col items-center w-[18%]">
+                                        <div className={`w-5.5 h-5.5 rounded-full flex items-center justify-center text-[9px] font-black transition-all duration-300 ${
+                                          completed 
+                                            ? 'bg-blue-600 text-white ring-4 ring-blue-50' 
+                                            : current 
+                                            ? 'bg-amber-100 border-2 border-amber-500 text-amber-700 animate-pulse'
+                                            : 'bg-white border-2 border-gray-200 text-gray-400'
+                                        }`}>
+                                          {completed ? '✓' : idx + 1}
+                                        </div>
+                                        <span className={`text-[8px] font-black uppercase mt-1.5 text-center leading-none tracking-tighter ${
+                                          completed ? 'text-gray-800' : current ? 'text-amber-600 font-extrabold' : 'text-gray-400'
+                                        }`}>
+                                          {step.label}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
                         {/* Reporter details */}
                         <div className="flex items-center space-x-2 text-xs text-gray-500 border-b border-gray-100 pb-2">
                           <div className="bg-gray-200 p-1.5 rounded-full">
@@ -405,16 +570,29 @@ export default function IssuesFeed({
                         </div>
 
                         {/* Tracking ID & Department Metadata */}
-                        <div className="flex flex-wrap gap-2 p-2.5 bg-[#1a73e8]/5 rounded-xl border border-[#1a73e8]/10 text-xs">
-                          <span className="font-extrabold text-[#1a73e8]">AI Route Details:</span>
-                          <span className="font-mono bg-white px-1.5 py-0.5 rounded border border-gray-100 shadow-3xs text-gray-700">
-                            Tracking ID: {issue.id.startsWith('issue-') ? `CIVIC-2025-${issue.id.slice(-4).toUpperCase()}` : issue.id}
-                          </span>
-                          <span className="font-bold text-gray-600 bg-white px-1.5 py-0.5 rounded border border-gray-100 shadow-3xs">
-                            Dept: {issue.category === 'Pothole' || issue.category === 'Broken Footpath' ? 'PWD' : 
-                                   issue.category === 'Water Leakage' ? 'Water Board' : 
-                                   issue.category === 'Damaged Streetlight' ? 'Electricity Board' : 'Municipal Corporation'}
-                          </span>
+                        <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-[#1a73e8]/5 rounded-xl border border-[#1a73e8]/10 text-xs w-full">
+                          <div className="flex flex-wrap gap-2 items-center">
+                            <span className="font-extrabold text-[#1a73e8]">AI Route:</span>
+                            <span className="font-mono bg-white px-1.5 py-0.5 rounded border border-gray-100 shadow-3xs text-gray-700">
+                              {issue.id.startsWith('issue-') ? `CIVIC-2025-${issue.id.slice(-4).toUpperCase()}` : issue.id}
+                            </span>
+                            <span className="font-bold text-gray-600 bg-white px-1.5 py-0.5 rounded border border-gray-100 shadow-3xs">
+                              {issue.category === 'Pothole' || issue.category === 'Broken Footpath' ? 'PWD' : 
+                               issue.category === 'Water Leakage' ? 'Water Board' : 
+                               issue.category === 'Damaged Streetlight' ? 'Electricity Board' : 'Municipal Corporation'}
+                            </span>
+                          </div>
+                          {issue.status !== 'Resolved' && onResolveIssue && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onResolveIssue(issue.id);
+                              }}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] px-2.5 py-1 rounded-lg transition shadow-3xs uppercase tracking-wider cursor-pointer flex items-center space-x-1 shrink-0"
+                            >
+                              <span>Mark Resolved ✓</span>
+                            </button>
+                          )}
                         </div>
 
                         {/* Extended Description */}
@@ -489,29 +667,58 @@ export default function IssuesFeed({
         /* Predictive Insights Tab */
         <div className="space-y-5 pb-8">
           {isInsightsLoading ? (
-            <div className="bg-white rounded-xl border border-gray-100 p-8 text-center space-y-4 shadow-2xs">
-              <div className="relative w-16 h-16 mx-auto flex items-center justify-center bg-blue-50 text-[#1a73e8] rounded-full animate-pulse">
-                <Sparkles className="w-8 h-8 animate-spin" style={{ animationDuration: '3s' }} />
+            <div className="space-y-4 animate-pulse">
+              {/* Summary Card Skeleton */}
+              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-2xs space-y-3">
+                <div className="flex items-center space-x-2">
+                  <div className="h-4 w-4 bg-gray-200 rounded-full"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                </div>
+                <div className="space-y-2">
+                  <div className="h-3 bg-gray-200 rounded w-full"></div>
+                  <div className="h-3 bg-gray-200 rounded w-5/6"></div>
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <h3 className="text-sm font-extrabold text-gray-900">AI insights analyst is thinking...</h3>
-                <p className="text-xs text-gray-500 leading-normal max-w-xs mx-auto">
-                  Aggregating civic dataset, sorting categories, assessing high-risk wards, and formulating predictive municipal forecasts...
-                </p>
+
+              {/* Bento Grid Skeleton */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white p-3.5 rounded-xl border border-gray-100 shadow-2xs space-y-2">
+                  <div className="h-2.5 bg-gray-200 rounded w-2/3"></div>
+                  <div className="h-3.5 bg-gray-200 rounded w-1/2"></div>
+                </div>
+                <div className="bg-white p-3.5 rounded-xl border border-gray-100 shadow-2xs space-y-2">
+                  <div className="h-2.5 bg-gray-200 rounded w-1/2"></div>
+                  <div className="h-3.5 bg-gray-200 rounded w-3/4"></div>
+                </div>
+                <div className="col-span-2 bg-white p-3.5 rounded-xl border border-gray-100 shadow-2xs space-y-2">
+                  <div className="h-2.5 bg-gray-200 rounded w-1/3"></div>
+                  <div className="h-3.5 bg-gray-200 rounded w-5/6"></div>
+                </div>
               </div>
-              <div className="flex justify-center space-x-1">
-                <div className="w-2 h-2 bg-[#1a73e8] rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                <div className="w-2 h-2 bg-[#1a73e8] rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                <div className="w-2 h-2 bg-[#1a73e8] rounded-full animate-bounce"></div>
+
+              {/* Chart Skeletons */}
+              <div className="bg-white p-4 h-52 rounded-xl border border-gray-100 shadow-2xs space-y-3">
+                <div className="h-3 bg-gray-200 rounded w-1/4"></div>
+                <div className="h-32 bg-gray-50 rounded-lg flex items-end p-2 space-x-4 justify-around">
+                  <div className="bg-gray-200 w-12 h-1/3 rounded-t"></div>
+                  <div className="bg-gray-200 w-12 h-2/3 rounded-t"></div>
+                  <div className="bg-gray-200 w-12 h-1/2 rounded-t"></div>
+                  <div className="bg-gray-200 w-12 h-4/5 rounded-t"></div>
+                </div>
               </div>
             </div>
           ) : insightsError ? (
-            <div className="bg-red-50 text-red-700 p-4 rounded-xl border border-red-200 text-xs font-medium text-center space-y-2">
-              <AlertCircle className="w-6 h-6 mx-auto text-red-500" />
-              <p>{insightsError}</p>
+            <div className="bg-red-50 text-red-700 p-5 rounded-2xl border border-red-200 text-xs font-semibold text-center space-y-3 shadow-3xs max-w-sm mx-auto">
+              <AlertCircle className="w-8 h-8 mx-auto text-red-500 animate-bounce" />
+              <div className="space-y-1">
+                <h4 className="font-extrabold text-red-800">Connection Standard Deferred</h4>
+                <p className="text-red-600 leading-normal font-medium">
+                  We encountered a temporary connection issue. Tap 'Retry Analysis' to safely regenerate AI insights.
+                </p>
+              </div>
               <button 
                 onClick={fetchInsights}
-                className="bg-red-700 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold cursor-pointer animate-pulse"
+                className="bg-red-700 hover:bg-red-800 text-white px-4 py-2 rounded-xl text-[10px] font-bold cursor-pointer transition shadow-xs"
               >
                 Retry Analysis
               </button>

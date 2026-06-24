@@ -19,8 +19,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { IssueCategory, IssueSeverity, CivicIssue } from '../types';
 
 interface ReportFormProps {
-  onSubmitIssue: (issue: Partial<CivicIssue>) => void;
+  onSubmitIssue: (issue: Partial<CivicIssue>, routeResult?: any) => void;
   onAddPoints: (pts: number) => void;
+  issues: CivicIssue[];
 }
 
 // Beautiful stock images representing typical Indian civic issues for easy testing
@@ -51,7 +52,7 @@ const SAMPLE_PHOTOS = [
   }
 ];
 
-export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormProps) {
+export default function ReportForm({ onSubmitIssue, onAddPoints, issues }: ReportFormProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<IssueCategory>('Pothole');
@@ -70,6 +71,9 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
   const [aiConfidence, setAiConfidence] = useState<number | null>(null);
   const [suggestedDept, setSuggestedDept] = useState<string>('');
   const [aiAnalysisError, setAiAnalysisError] = useState<string | null>(null);
+
+  // AI Routing Agent result state
+  const [routeResult, setRouteResult] = useState<any>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -256,7 +260,7 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
     analyzeWithGemini(url, 'image/jpeg');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !description.trim() || !location.trim()) {
       alert('Please fill out all required fields.');
@@ -264,10 +268,37 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
     }
 
     setIsSubmitting(true);
+    setRouteResult(null);
 
-    // Simulate submission delay
-    setTimeout(() => {
-      const pts = 50; // Report issue rewards 50 points!
+    const computedGps = gps || { lat: 20.2961 + (Math.random() - 0.5) * 0.015, lng: 85.8245 + (Math.random() - 0.5) * 0.015 };
+
+    try {
+      const res = await fetch('/api/gemini/route-issue', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          issue: {
+            title: title.trim(),
+            description: description.trim(),
+            category,
+            severity,
+            location: location.trim(),
+            gps: computedGps,
+          },
+          existingIssues: issues
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Autonomous routing service response not OK');
+      }
+
+      const result = await res.json();
+      setRouteResult(result);
+
+      const pts = 50; // Contributor gains 50 points
       onAddPoints(pts);
       setPointsGained(pts);
 
@@ -277,15 +308,14 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
         category,
         severity,
         location: location.trim(),
-        gps: gps || { lat: 20.2961 + (Math.random() - 0.5) * 0.015, lng: 85.8245 + (Math.random() - 0.5) * 0.015 },
+        gps: computedGps,
         photoUrl: photoUrl || 'https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&q=80&w=600',
         upvotes: 0,
         status: 'Open',
         reporterName: 'You (Ankit Kumar)',
         comments: []
-      });
+      }, result);
 
-      setIsSubmitting(false);
       setShowSuccess(true);
 
       // Reset form fields
@@ -294,7 +324,49 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
       setLocation('');
       setGps(null);
       setPhotoUrl('');
-    }, 1500);
+
+    } catch (err: any) {
+      console.error('Autonomous routing agent failed:', err);
+      
+      // Fallback routing if offline or key is missing
+      const randomDigits = Math.floor(1000 + Math.random() * 9000);
+      const trackingId = `CIVIC-2025-${randomDigits}`;
+      const mockResult = {
+        status: 'routed',
+        trackingId,
+        department: category === 'Pothole' ? 'PWD' : category === 'Water Leakage' ? 'Water Board' : 'Municipal Corporation',
+        estimatedResolutionDays: category === 'Pothole' ? 7 : category === 'Water Leakage' ? 3 : 5,
+        notificationMessage: `Your issue #${trackingId} has been assigned to ${category === 'Pothole' ? 'PWD' : category === 'Water Leakage' ? 'Water Board' : 'Municipal Corporation'}. Estimated resolution: ${category === 'Pothole' ? 7 : category === 'Water Leakage' ? 3 : 5} days.`
+      };
+      setRouteResult(mockResult);
+
+      const pts = 50;
+      onAddPoints(pts);
+      setPointsGained(pts);
+
+      onSubmitIssue({
+        title: title.trim(),
+        description: description.trim(),
+        category,
+        severity,
+        location: location.trim(),
+        gps: computedGps,
+        photoUrl: photoUrl || 'https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&q=80&w=600',
+        upvotes: 0,
+        status: 'Open',
+        reporterName: 'You (Ankit Kumar)',
+        comments: []
+      }, mockResult);
+
+      setShowSuccess(true);
+      setTitle('');
+      setDescription('');
+      setLocation('');
+      setGps(null);
+      setPhotoUrl('');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -574,13 +646,13 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-[#1a73e8] hover:bg-[#1557b0] text-white py-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition shadow-md hover:shadow-lg cursor-pointer disabled:opacity-75"
+              className="w-full bg-[#1a73e8] hover:bg-[#1557b0] text-white py-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition shadow-md hover:shadow-lg cursor-pointer disabled:opacity-75 relative overflow-hidden"
             >
               {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Submitting Community Report...</span>
-                </>
+                <div className="flex items-center space-x-2">
+                  <Sparkles className="w-4 h-4 animate-spin text-amber-300" />
+                  <span className="font-extrabold tracking-wide">AI Agent routing & predicting... 🔮</span>
+                </div>
               ) : (
                 <>
                   <Send className="w-4 h-4" />
@@ -596,16 +668,54 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
             animate={{ opacity: 1, scale: 1 }}
             className="text-center py-10 space-y-6"
           >
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto text-green-600 border-4 border-green-50 shadow-md">
-              <CheckCircle className="w-8 h-8" />
-            </div>
-            
-            <div className="space-y-2">
-              <h3 className="text-xl font-black text-gray-950">Civic Report Received!</h3>
-              <p className="text-xs text-gray-500 max-w-sm mx-auto">
-                Your report has been logged successfully and is now live on the public dashboard. Citizens in your ward can upvote and add validating comments.
-              </p>
-            </div>
+            {routeResult?.status === 'duplicate' ? (
+              <>
+                <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto text-amber-600 border-4 border-amber-50 shadow-md">
+                  <Sparkles className="w-8 h-8 fill-amber-500/20" />
+                </div>
+                
+                <div className="space-y-2">
+                  <h3 className="text-xl font-black text-amber-900">Duplicate Report Merged!</h3>
+                  <p className="text-xs text-gray-700 max-w-sm mx-auto font-medium leading-relaxed">
+                    Our AI Issue Router Agent checked the 200m radius and detected a similar reported hazard. Your vote has been merged automatically.
+                  </p>
+                  <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl text-left text-xs space-y-1.5 max-w-xs mx-auto">
+                    <p className="font-bold text-amber-900">🔔 Agent Notification:</p>
+                    <p className="text-amber-800 font-medium">This issue was already reported — your upvote has been added</p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto text-green-600 border-4 border-green-50 shadow-md">
+                  <CheckCircle className="w-8 h-8" />
+                </div>
+                
+                <div className="space-y-2">
+                  <h3 className="text-xl font-black text-gray-950">Civic Report Received!</h3>
+                  <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                    Your report is live on the public dashboard. Citizens in your ward can upvote and comment.
+                  </p>
+                  
+                  {routeResult && (
+                    <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-xl text-left text-xs space-y-1.5 max-w-sm mx-auto">
+                      <p className="font-bold text-[#1a73e8] flex items-center space-x-1.5">
+                        <Sparkles className="w-3.5 h-3.5 fill-blue-500/20" />
+                        <span>AI Route & Prediction Details:</span>
+                      </p>
+                      <ul className="text-gray-700 space-y-1 list-disc list-inside pl-1 text-[11px]">
+                        <li>Tracking ID: <span className="font-mono font-bold bg-white px-1.5 py-0.5 rounded border border-blue-100">{routeResult.trackingId}</span></li>
+                        <li>Department: <span className="font-bold">{routeResult.department}</span></li>
+                        <li>Estimated Resolution: <span className="font-bold text-green-600">{routeResult.estimatedResolutionDays} days</span></li>
+                      </ul>
+                      <div className="mt-2 text-[10px] text-gray-500 italic bg-white p-2 rounded-lg border border-gray-100">
+                        "{routeResult.notificationMessage}"
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
 
             {/* Point Bonus Card */}
             <motion.div 
@@ -627,7 +737,7 @@ export default function ReportForm({ onSubmitIssue, onAddPoints }: ReportFormPro
               onClick={() => {
                 setShowSuccess(false);
               }}
-              className="px-6 py-2.5 bg-gray-900 text-white rounded-lg font-bold text-xs hover:bg-gray-800 transition"
+              className="px-6 py-2.5 bg-gray-900 text-white rounded-lg font-bold text-xs hover:bg-gray-800 transition cursor-pointer"
             >
               File Another Report
             </button>
