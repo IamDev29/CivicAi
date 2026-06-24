@@ -1157,6 +1157,106 @@ The tone should be highly professional, objective, and citizen-first. If the gra
   }
 });
 
+// API Endpoint to generate AI Work Order for an issue
+app.post("/api/gemini/work-order", async (req, res) => {
+  try {
+    const { issue } = req.body;
+
+    if (!issue) {
+      return res.status(400).json({ error: "Missing issue details in request body" });
+    }
+
+    const orderNumber = `WO-BMC-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    const generateLocalWorkOrder = () => {
+      const title = issue.title || "Civic Hazard";
+      const category = issue.category || "General Repairs";
+      const severity = issue.severity || "Medium";
+      const location = issue.location || "Bhubaneswar";
+      
+      return `BHUBANESWAR MUNICIPAL CORPORATION
+WORKS & INFRASTRUCTURE DEPARTMENT
+OFFICIAL WORK ORDER REFERENCE: ${orderNumber}
+
+SUBJECT: EMERGENCY RESOLUTION & SANITATION CONTRACT FOR: ${title.toUpperCase()}
+CATEGORY: ${category}
+LOCATION: ${location}
+SEVERITY LEVEL: ${severity}
+
+1. PRIORITY JUSTIFICATION
+The reported issue is flagged as a safety hazard for the residents of ${location}. Immediate intervention is required to avoid localized accidents, vehicle damage, or prolonged infrastructure decay. Given the current severity level (${severity}), this work has been categorized as PRIORITY STATUS.
+
+2. REQUIRED MATERIALS ESTIMATE
+- Heavy Duty Asphalt Repair Mix / Concrete patching compounds: 2.5 Tons
+- Industrial Pipe Sealants & High-Grade Watertight Coupling Sleeves (if applicable)
+- Retroreflective high-durability signboards and barricading tape
+- Sand, aggregate, and quick-setting cement mix
+
+3. MANPOWER REQUIRED
+- 1 Senior Works Supervisor (Civil/Electrical Maintenance)
+- 2 Skilled Equipment Operators / Technicians
+- 4 General Laborers
+- 1 Traffic Safety Marshall / Signaller
+
+4. STEP-BY-STEP RESOLUTION PROCEDURE
+- Step A: Secure the zone by installing heavy-duty safety barricades and warning signage within a 20m radius.
+- Step B: Inspect the core structural defect. Clear out debris, loose gravel, stagnant water, or organic blockages.
+- Step C: Apply corrective treatment (excavation, filling, sealing, or replacing the damaged lamp/pipe element).
+- Step D: Allow setting and curing time. Conduct a thorough compaction or functionality check.
+- Step E: Restore normal public traffic flow, clear away residue materials, and document resolution with post-work imagery.
+
+5. SAFETY PRECAUTIONS
+- Workers must strictly wear Class-3 High-Visibility Safety Vests, steel-toed boots, protective gloves, and safety helmets.
+- Maintain continuous traffic coordination during peak hours.
+- Set up blinking amber warning lights if working during hours of low light or night shifts.
+
+AUTHORIZED BY: 
+Commissioner of Municipal Works, BMC
+Date of Issue: ${new Date().toLocaleDateString()}`;
+    };
+
+    if (!process.env.GEMINI_API_KEY) {
+      console.warn("GEMINI_API_KEY is not set. Serving Work Order via local fallback.");
+      return res.json({ workOrder: generateLocalWorkOrder(), orderNumber });
+    }
+
+    try {
+      const promptText = `Generate a formal, highly detailed government work order for this civic issue:
+Title: "${issue.title || ''}"
+Category: "${issue.category || ''}"
+Description: "${issue.description || ''}"
+Location: "${issue.location || ''}"
+Severity: "${issue.severity || ''}"
+Status: "${issue.status || ''}"
+
+Please include these exact sections in the document:
+1. PRIORITY JUSTIFICATION (explain why this needs immediate attention based on the reported details and severity of ${issue.severity || 'Medium'})
+2. REQUIRED MATERIALS ESTIMATE (suggest realistic physical materials needed, with estimated quantities)
+3. MANPOWER NEEDED (specify the roles and number of personnel required to execute the job safely)
+4. STEP-BY-STEP RESOLUTION PROCEDURE (provide a professional 4-5 step engineering/works plan)
+5. SAFETY PRECAUTIONS (outline specific worker and public safety requirements)
+
+Format the output strictly as a clean, highly formal government document. Begin with an official-looking header for BHUBANESWAR MUNICIPAL CORPORATION, citing the Work Order Number ${orderNumber}. DO NOT USE ANY MARKDOWN formatting like bolding or asterisks inside the body, use plain capitalized headers and spacing to make it look like a real printed terminal or typewriter document.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: promptText
+      });
+
+      const workOrder = response.text?.trim() || generateLocalWorkOrder();
+      return res.json({ workOrder, orderNumber });
+
+    } catch (geminiError: any) {
+      console.warn("Work Order Gemini error, falling back to local generator:", geminiError.message || geminiError);
+      return res.json({ workOrder: generateLocalWorkOrder(), orderNumber });
+    }
+
+  } catch (error: any) {
+    console.error("Work Order Endpoint error:", error);
+    return res.status(500).json({ error: error.message || "Failed to generate AI work order." });
+  }
+});
+
 // Configure Vite or Static Serve
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {

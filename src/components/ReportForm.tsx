@@ -16,7 +16,9 @@ import {
   Sparkles,
   AlertCircle,
   Mic,
-  Square
+  Square,
+  Share2,
+  Share
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { IssueCategory, IssueSeverity, CivicIssue } from '../types';
@@ -142,6 +144,64 @@ export default function ReportForm({ onSubmitIssue, onAddPoints, issues }: Repor
     };
   }, []);
 
+  // Track scroll of form parent to show floating Submit button on mobile after 50% scroll
+  React.useEffect(() => {
+    const handleScroll = () => {
+      if (!containerRef.current) return;
+      
+      let parent = containerRef.current.parentElement;
+      let scrollTarget: HTMLElement | Window = window;
+      while (parent) {
+        const overflowY = window.getComputedStyle(parent).overflowY;
+        if (overflowY === 'auto' || overflowY === 'scroll') {
+          scrollTarget = parent;
+          break;
+        }
+        parent = parent.parentElement;
+      }
+      
+      let scrollTop = 0;
+      let scrollHeight = 0;
+      let clientHeight = 0;
+      
+      if (scrollTarget === window) {
+        scrollTop = window.scrollY;
+        scrollHeight = document.documentElement.scrollHeight;
+        clientHeight = window.innerHeight;
+      } else {
+        const el = scrollTarget as HTMLElement;
+        scrollTop = el.scrollTop;
+        scrollHeight = el.scrollHeight;
+        clientHeight = el.clientHeight;
+      }
+      
+      if (scrollHeight - clientHeight > 100) {
+        const scrolledPercent = (scrollTop / (scrollHeight - clientHeight)) * 100;
+        setShowFloatingSubmit(scrolledPercent >= 50);
+      } else {
+        setShowFloatingSubmit(false);
+      }
+    };
+
+    let parent = containerRef.current?.parentElement;
+    let scrollTarget: HTMLElement | Window = window;
+    while (parent) {
+      const overflowY = window.getComputedStyle(parent).overflowY;
+      if (overflowY === 'auto' || overflowY === 'scroll') {
+        scrollTarget = parent;
+        break;
+      }
+      parent = parent.parentElement;
+    }
+
+    scrollTarget.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+
+    return () => {
+      scrollTarget.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
   // Gemini state variables
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiConfidence, setAiConfidence] = useState<number | null>(null);
@@ -151,6 +211,27 @@ export default function ReportForm({ onSubmitIssue, onAddPoints, issues }: Repor
   // AI Routing Agent result state
   const [routeResult, setRouteResult] = useState<any>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [descriptionError, setDescriptionError] = useState<string | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [titleError, setTitleError] = useState<string | null>(null);
+  const [submitLoadingText, setSubmitLoadingText] = useState('AI is analyzing your report...');
+  const [showFloatingSubmit, setShowFloatingSubmit] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = () => {
+    const textToCopy = `CivicAI Report #${routeResult?.trackingId || 'CIVIC-2025-XXXX'}
+Category: ${routeResult?.category || 'General'}
+Severity: ${routeResult?.severity || 'Medium'}
+Estimated Resolution Time: ${routeResult?.estimatedResolutionDays || 5} days
+Assigned Department: ${routeResult?.department || 'Municipal Corp'}
+Check real-time status updates and validate issues on CivicAI! 🌍`;
+
+    navigator.clipboard.writeText(textToCopy);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   // Voice recording and parsing states
   const [isRecording, setIsRecording] = useState(false);
@@ -448,6 +529,7 @@ export default function ReportForm({ onSubmitIssue, onAddPoints, issues }: Repor
     const file = e.target.files?.[0];
     if (file) {
       setFormError(null);
+      setPhotoError(null);
       const reader = new FileReader();
       reader.onloadend = () => {
         const resultUrl = reader.result as string;
@@ -460,6 +542,7 @@ export default function ReportForm({ onSubmitIssue, onAddPoints, issues }: Repor
 
   const handleSelectSamplePhoto = (url: string, cat: IssueCategory) => {
     setFormError(null);
+    setPhotoError(null);
     setPhotoUrl(url);
     setCategory(cat);
     
@@ -475,14 +558,49 @@ export default function ReportForm({ onSubmitIssue, onAddPoints, issues }: Repor
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !description.trim() || !location.trim()) {
-      setFormError('Please fill out all required fields: Title, Description, and Location Landmarks.');
-      return;
-    }
+    
+    // Clear previous errors
+    setPhotoError(null);
+    setDescriptionError(null);
+    setLocationError(null);
+    setTitleError(null);
     setFormError(null);
 
+    let hasErrors = false;
+
+    if (!photoUrl) {
+      setPhotoError('Photo is required. Please upload an issue photo or select a quick test photo.');
+      hasErrors = true;
+    }
+
+    if (!description.trim()) {
+      setDescriptionError('Detailed description is required. Please explain the civic issue.');
+      hasErrors = true;
+    }
+
+    if (!location.trim()) {
+      setLocationError('Location landmarks are required. Please specify a landmark.');
+      hasErrors = true;
+    }
+
+    if (!title.trim()) {
+      setTitleError('Issue title is required.');
+      hasErrors = true;
+    }
+
+    if (hasErrors) {
+      setFormError('Please fill out all required fields and add an issue photo before submitting.');
+      const container = document.getElementById('report-form-container');
+      container?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+
     setIsSubmitting(true);
+    setSubmitLoadingText('AI is analyzing your report...');
     setRouteResult(null);
+
+    // AI is analyzing your report... for 2 seconds
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     const computedGps = gps || { lat: 20.2961 + (Math.random() - 0.5) * 0.015, lng: 85.8245 + (Math.random() - 0.5) * 0.015 };
 
@@ -509,8 +627,13 @@ export default function ReportForm({ onSubmitIssue, onAddPoints, issues }: Repor
         throw new Error('Autonomous routing service response not OK');
       }
 
-      const result = await res.json();
-      setRouteResult(result);
+       const result = await res.json();
+      const mergedResult = {
+        ...result,
+        category: result.category || category,
+        severity: result.severity || severity,
+      };
+      setRouteResult(mergedResult);
 
       const pts = 50; // Contributor gains 50 points
       onAddPoints(pts);
@@ -528,7 +651,7 @@ export default function ReportForm({ onSubmitIssue, onAddPoints, issues }: Repor
         status: 'Open',
         reporterName: 'You (Ankit Kumar)',
         comments: []
-      }, result);
+      }, mergedResult);
 
       setShowSuccess(true);
 
@@ -584,7 +707,7 @@ export default function ReportForm({ onSubmitIssue, onAddPoints, issues }: Repor
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-xs border border-gray-100 p-5 max-w-lg mx-auto" id="report-form-container">
+    <div ref={containerRef} className="bg-white rounded-2xl shadow-xs border border-gray-100 p-5 max-w-lg mx-auto" id="report-form-container">
       
       <AnimatePresence mode="wait">
         {!showSuccess ? (
@@ -754,6 +877,13 @@ export default function ReportForm({ onSubmitIssue, onAddPoints, issues }: Repor
                 />
               </div>
 
+              {photoError && (
+                <div className="bg-red-50 text-red-700 p-2.5 rounded-xl border border-red-100 text-[10px] font-bold flex items-center space-x-1.5 animate-shake my-1">
+                  <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                  <span>{photoError}</span>
+                </div>
+              )}
+
               {/* Quick sample pickers (AMAZING UX for iframe preview) */}
               <div className="space-y-1">
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center space-x-1">
@@ -920,9 +1050,18 @@ export default function ReportForm({ onSubmitIssue, onAddPoints, issues }: Repor
                 required
                 placeholder="Enter exact landmark or street name..."
                 value={location}
-                onChange={(e) => setLocation(e.target.value)}
+                onChange={(e) => {
+                  setLocation(e.target.value);
+                  if (locationError) setLocationError(null);
+                }}
                 className="w-full text-xs p-3 bg-[#f1f3f4] border-none rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]"
               />
+              {locationError && (
+                <div className="text-red-600 text-[10px] font-bold mt-1 pl-1 flex items-center space-x-1 animate-pulse">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>{locationError}</span>
+                </div>
+              )}
             </div>
 
             {/* 4. Title & Description */}
@@ -936,9 +1075,18 @@ export default function ReportForm({ onSubmitIssue, onAddPoints, issues }: Repor
                   required
                   placeholder="E.g. Huge water waste from broken WATCO line"
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                    if (titleError) setTitleError(null);
+                  }}
                   className="w-full text-xs p-3 bg-[#f1f3f4] border-none rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]"
                 />
+                {titleError && (
+                  <div className="text-red-600 text-[10px] font-bold mt-1 pl-1 flex items-center space-x-1 animate-pulse">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    <span>{titleError}</span>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -950,9 +1098,18 @@ export default function ReportForm({ onSubmitIssue, onAddPoints, issues }: Repor
                   rows={3}
                   placeholder="Describe the issue. How is it impacting citizens? Mention if it is a major hazard to motorists or pedestrians."
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  onChange={(e) => {
+                    setDescription(e.target.value);
+                    if (descriptionError) setDescriptionError(null);
+                  }}
                   className="w-full text-xs p-3 bg-[#f1f3f4] border-none rounded-xl text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1a73e8] resize-none"
                 />
+                {descriptionError && (
+                  <div className="text-red-600 text-[10px] font-bold mt-1 pl-1 flex items-center space-x-1 animate-pulse">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    <span>{descriptionError}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1034,8 +1191,15 @@ export default function ReportForm({ onSubmitIssue, onAddPoints, issues }: Repor
                         <Sparkles className="w-3.5 h-3.5 fill-blue-500/20" />
                         <span>AI Route & Prediction Details:</span>
                       </p>
-                      <ul className="text-gray-700 space-y-1 list-disc list-inside pl-1 text-[11px]">
+                      <ul className="text-gray-700 space-y-1.5 list-disc list-inside pl-1 text-[11px]">
                         <li>Tracking ID: <span className="font-mono font-bold bg-white px-1.5 py-0.5 rounded border border-blue-100">{routeResult.trackingId}</span></li>
+                        <li>AI Category: <span className="font-bold">{routeResult.category || 'General'}</span></li>
+                        <li>AI Severity: <span className={`font-bold px-1.5 py-0.5 rounded text-[10px] ${
+                          routeResult.severity === 'Critical' ? 'bg-purple-100 text-purple-700' :
+                          routeResult.severity === 'High' ? 'bg-red-100 text-red-700' :
+                          routeResult.severity === 'Medium' ? 'bg-amber-100 text-amber-700' :
+                          'bg-green-100 text-green-700'
+                        }`}>{routeResult.severity || 'Medium'}</span></li>
                         <li>Department: <span className="font-bold">{routeResult.department}</span></li>
                         <li>Estimated Resolution: <span className="font-bold text-green-600">{routeResult.estimatedResolutionDays} days</span></li>
                       </ul>
@@ -1064,13 +1228,46 @@ export default function ReportForm({ onSubmitIssue, onAddPoints, issues }: Repor
               </div>
             </motion.div>
 
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 max-w-xs mx-auto pt-2">
+              <button
+                onClick={handleShare}
+                className="w-full sm:flex-1 px-4 py-2.5 bg-[#128c7e] hover:bg-[#0b665c] text-white rounded-lg font-bold text-xs transition cursor-pointer flex items-center justify-center space-x-1.5 shadow-sm active:scale-95"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>{copied ? 'Copied Details! 📋' : 'Share Report'}</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowSuccess(false);
+                }}
+                className="w-full sm:flex-1 px-4 py-2.5 bg-gray-900 text-white rounded-lg font-bold text-xs hover:bg-gray-800 transition cursor-pointer active:scale-95"
+              >
+                File Another
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Floating Submit Button for Mobile / Scrolled view */}
+      <AnimatePresence>
+        {showFloatingSubmit && !showSuccess && !isSubmitting && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 50, scale: 0.9 }}
+            className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-4 w-full max-w-xs pointer-events-none"
+          >
             <button
               onClick={() => {
-                setShowSuccess(false);
+                const submitBtn = document.getElementById('submit-report-btn');
+                submitBtn?.click();
               }}
-              className="px-6 py-2.5 bg-gray-900 text-white rounded-lg font-bold text-xs hover:bg-gray-800 transition cursor-pointer"
+              className="w-full bg-[#115e59] hover:bg-[#0f4c46] text-white py-3 rounded-full font-black text-xs flex items-center justify-center space-x-1.5 shadow-2xl transition cursor-pointer pointer-events-auto active:scale-95 text-center uppercase tracking-wider border border-teal-600/30"
             >
-              File Another Report
+              <Send className="w-3.5 h-3.5" />
+              <span>Submit Report</span>
             </button>
           </motion.div>
         )}

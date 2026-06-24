@@ -75,6 +75,7 @@ export default function IssuesFeed({
   const [expandedIssueId, setExpandedIssueId] = useState<string | null>(null);
   const [newCommentTexts, setNewCommentTexts] = useState<{ [key: string]: string }>({});
   const [copiedIssueId, setCopiedIssueId] = useState<string | null>(null);
+  const [isPostingComment, setIsPostingComment] = useState<{ [key: string]: boolean }>({});
 
   // States for verification
   const [verifyingIssues, setVerifyingIssues] = useState<{ [key: string]: boolean }>({});
@@ -247,18 +248,24 @@ export default function IssuesFeed({
     }
   };
 
-  const handlePostComment = (issueId: string, e: React.FormEvent) => {
+  const handlePostComment = async (issueId: string, e: React.FormEvent) => {
     e.preventDefault();
     const commentText = newCommentTexts[issueId];
     if (!commentText || !commentText.trim()) return;
 
+    setIsPostingComment(prev => ({ ...prev, [issueId]: true }));
+    
+    // Simulate 600ms posting delay
+    await new Promise(resolve => setTimeout(resolve, 600));
+
     onAddComment(issueId, commentText.trim());
     
-    // Clear the specific comment text field
+    // Clear the specific comment text field and reset loading
     setNewCommentTexts(prev => ({
       ...prev,
       [issueId]: ''
     }));
+    setIsPostingComment(prev => ({ ...prev, [issueId]: false }));
   };
 
   return (
@@ -840,18 +847,24 @@ export default function IssuesFeed({
                             <input
                               type="text"
                               placeholder="Validate this issue or add a comment..."
+                              disabled={isPostingComment[issue.id]}
                               value={newCommentTexts[issue.id] || ''}
                               onChange={(e) => setNewCommentTexts(prev => ({
                                 ...prev,
                                 [issue.id]: e.target.value
                               }))}
-                              className="flex-1 text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-[#1a73e8]"
+                              className="flex-1 text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-[#1a73e8] disabled:opacity-60"
                             />
                             <button
                               type="submit"
-                              className="bg-gray-900 hover:bg-gray-800 text-white px-3.5 py-2 rounded-lg text-xs font-bold transition shrink-0 cursor-pointer"
+                              disabled={isPostingComment[issue.id] || !(newCommentTexts[issue.id]?.trim())}
+                              className="bg-gray-900 hover:bg-gray-800 text-white px-3.5 py-2 rounded-lg text-xs font-bold transition shrink-0 cursor-pointer disabled:opacity-50 flex items-center justify-center min-w-[60px]"
                             >
-                              Post
+                              {isPostingComment[issue.id] ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                "Post"
+                              )}
                             </button>
                           </form>
                         </div>

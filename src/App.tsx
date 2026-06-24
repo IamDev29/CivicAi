@@ -32,6 +32,7 @@ import CivicBot from './components/CivicBot';
 import DemoTour from './components/DemoTour';
 import LandingPage from './components/LandingPage';
 import AuthFlow from './components/AuthFlow';
+import AuthorityDashboard from './components/AuthorityDashboard';
 import { APIProvider } from '@vis.gl/react-google-maps';
 
 const API_KEY =
@@ -42,7 +43,7 @@ const API_KEY =
 const hasValidKey = Boolean(API_KEY) && API_KEY !== 'YOUR_API_KEY';
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<{ name: string; ward: string; role: string; points: number; badges: string[] } | null>(() => {
+  const [currentUser, setCurrentUser] = useState<{ name: string; ward: string; role: string; points: number; badges: string[]; department?: string } | null>(() => {
     if (typeof window !== 'undefined' && window.localStorage) {
       const stored = localStorage.getItem('civic_current_user');
       if (stored) {
@@ -306,6 +307,44 @@ export default function App() {
     triggerAlert('Comment posted! +10 Engagement points 💬');
   };
 
+  // Authority Dashboard handlers
+  const handleUpdateIssueStatus = (issueId: string, status: IssueStatus, extraData?: any) => {
+    setIssues(prev => {
+      return prev.map(issue => {
+        if (issue.id === issueId) {
+          return {
+            ...issue,
+            status,
+            ...extraData
+          };
+        }
+        return issue;
+      });
+    });
+  };
+
+  const handleAuthorityAddComment = (issueId: string, commentText: string) => {
+    const authorName = currentUser ? currentUser.name : 'Officer (System)';
+    const newComment = {
+      id: `comment-${Date.now()}`,
+      userName: authorName,
+      text: commentText,
+      date: new Date().toISOString().split('T')[0]
+    };
+
+    setIssues(prev => {
+      return prev.map(issue => {
+        if (issue.id === issueId) {
+          return {
+            ...issue,
+            comments: [...issue.comments, newComment]
+          };
+        }
+        return issue;
+      });
+    });
+  };
+
   // Set selected issue from Map for deep inspection in Dashboard
   const handleSelectIssueFromMap = (issue: CivicIssue) => {
     setSelectedIssueFromMap(issue);
@@ -388,7 +427,7 @@ export default function App() {
     }
   };
 
-  const handleAuthSuccess = (user: { name: string; ward: string; role: string; points: number; badges: string[] }) => {
+  const handleAuthSuccess = (user: { name: string; ward: string; role: string; points: number; badges: string[]; department?: string }) => {
     setCurrentUser(user);
     setShowAuthModal(false);
     setShowLanding(false);
@@ -495,6 +534,15 @@ export default function App() {
                   setAuthInitialRole('official');
                   setShowAuthModal(true);
                 }}
+              />
+            ) : currentUser?.role === 'authority' ? (
+              <AuthorityDashboard 
+                currentUser={currentUser}
+                issues={issues}
+                onLogout={handleLogout}
+                onUpdateIssueStatus={handleUpdateIssueStatus}
+                onAddComment={handleAuthorityAddComment}
+                triggerAlert={triggerAlert}
               />
             ) : (
               <>

@@ -10,11 +10,12 @@ import {
   ChevronRight, 
   MapPin, 
   Lock, 
-  Sparkles 
+  Sparkles,
+  Loader2 
 } from 'lucide-react';
 
 interface AuthFlowProps {
-  onAuthSuccess: (user: { name: string; ward: string; role: string; points: number; badges: string[] }) => void;
+  onAuthSuccess: (user: { name: string; ward: string; role: string; points: number; badges: string[]; department?: string }) => void;
   onClose: () => void;
   initialRole?: 'citizen' | 'official' | null;
 }
@@ -30,6 +31,14 @@ const BHUBANESWAR_WARDS = [
   "Ward 8 Rasulgarh",
   "Ward 9 Old Town",
   "Ward 10 Laxmisagar"
+];
+
+const AUTHORITY_DEPARTMENTS = [
+  "Public Works Dept (PWD)",
+  "Water & Sewerage Board",
+  "Municipal Corporation",
+  "Electricity Board",
+  "Urban Planning"
 ];
 
 export default function AuthFlow({ onAuthSuccess, onClose, initialRole = null }: AuthFlowProps) {
@@ -48,7 +57,10 @@ export default function AuthFlow({ onAuthSuccess, onClose, initialRole = null }:
 
   // Official state
   const [officialId, setOfficialId] = useState('');
+  const [officialDepartment, setOfficialDepartment] = useState(AUTHORITY_DEPARTMENTS[0]);
   const [officialPassword, setOfficialPassword] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // If initialRole is specified, skip step 1
   useEffect(() => {
@@ -82,7 +94,7 @@ export default function AuthFlow({ onAuthSuccess, onClose, initialRole = null }:
   };
 
   // Handle Citizen signup or login submission
-  const handleVerifyOtp = (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (otpCode !== '123456') {
       setErrorMsg('Invalid OTP. Please enter 123456.');
@@ -95,6 +107,10 @@ export default function AuthFlow({ onAuthSuccess, onClose, initialRole = null }:
     }
 
     setErrorMsg('');
+    setIsVerifying(true);
+    
+    // Simulate 1.2 second network check
+    await new Promise(resolve => setTimeout(resolve, 1200));
     
     // Simulate lookup of user if login, or creation if signup
     let finalName = name;
@@ -128,27 +144,39 @@ export default function AuthFlow({ onAuthSuccess, onClose, initialRole = null }:
     localStorage.setItem(`civic_user_${mobile}`, JSON.stringify(citizenUser));
     localStorage.setItem('civic_current_user', JSON.stringify(citizenUser));
 
+    setIsVerifying(false);
     onAuthSuccess(citizenUser);
   };
 
   // Handle Official credentials submission
-  const handleOfficialLogin = (e: React.FormEvent) => {
+  const handleOfficialLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!officialId.trim()) {
-      setErrorMsg('Please enter your Departmental Official ID');
+      setErrorMsg('Please enter your Employee ID');
       return;
     }
     
     setErrorMsg('');
+    setIsLoggingIn(true);
+
+    // Simulate 1.2 seconds authority credential check
+    await new Promise(resolve => setTimeout(resolve, 1200));
+
+    const deptShort = officialDepartment.includes('(') 
+      ? officialDepartment.match(/\(([^)]+)\)/)?.[1] 
+      : officialDepartment;
+    
     const officialUser = {
-      name: 'Officer ' + (officialId || 'BMC-982'),
-      ward: 'All Wards (Bhubaneswar Municipal Corporation)',
+      name: 'Officer ' + deptShort,
       role: 'authority',
+      department: officialDepartment,
+      ward: 'All Wards (Bhubaneswar Municipal Corporation)',
       points: 100,
       badges: ['Officer Badge']
     };
 
     localStorage.setItem('civic_current_user', JSON.stringify(officialUser));
+    setIsLoggingIn(false);
     onAuthSuccess(officialUser);
   };
 
@@ -390,10 +418,20 @@ export default function AuthFlow({ onAuthSuccess, onClose, initialRole = null }:
                 ) : (
                   <button
                     type="submit"
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl text-[10px] font-black uppercase tracking-wider transition shadow-sm hover:shadow-md cursor-pointer flex items-center justify-center space-x-1"
+                    disabled={isVerifying}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl text-[10px] font-black uppercase tracking-wider transition shadow-sm hover:shadow-md cursor-pointer flex items-center justify-center space-x-1 disabled:opacity-55"
                   >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>{isSignUp ? "Verify & Join CivicAI" : "Verify & Enter"}</span>
+                    {isVerifying ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Verifying OTP...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>{isSignUp ? "Verify & Join CivicAI" : "Verify & Enter"}</span>
+                      </>
+                    )}
                   </button>
                 )}
               </div>
@@ -410,29 +448,44 @@ export default function AuthFlow({ onAuthSuccess, onClose, initialRole = null }:
 
               <div className="space-y-3">
                 <div className="space-y-1">
-                  <label className="block text-[8px] font-black text-gray-500 uppercase tracking-widest">Departmental ID</label>
+                  <label className="block text-[8px] font-black text-gray-500 uppercase tracking-widest">Employee ID</label>
                   <input 
                     type="text" 
-                    placeholder="e.g. BMC-OFF-912" 
+                    placeholder="e.g. PWD-2025-001" 
                     value={officialId}
                     onChange={(e) => setOfficialId(e.target.value)}
                     className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-bold text-gray-950 focus:outline-none focus:border-indigo-600 focus:bg-white transition"
+                    required
                   />
                 </div>
 
                 <div className="space-y-1">
+                  <label className="block text-[8px] font-black text-gray-500 uppercase tracking-widest">Department</label>
+                  <select
+                    value={officialDepartment}
+                    onChange={(e) => setOfficialDepartment(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-bold text-gray-950 focus:outline-none focus:border-indigo-600 focus:bg-white transition cursor-pointer appearance-none"
+                  >
+                    {AUTHORITY_DEPARTMENTS.map((dept, index) => (
+                      <option key={index} value={dept}>{dept}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
                   <div className="flex justify-between items-center">
-                    <label className="block text-[8px] font-black text-gray-500 uppercase tracking-widest">Security Pin</label>
-                    <span className="text-[8px] text-gray-400 font-bold italic">Mock: Any pin</span>
+                    <label className="block text-[8px] font-black text-gray-500 uppercase tracking-widest">Password</label>
+                    <span className="text-[8px] text-gray-400 font-bold italic">Mock: Any password</span>
                   </div>
                   <div className="relative">
                     <Lock className="absolute left-3.5 top-3 w-4 h-4 text-gray-400" />
                     <input 
                       type="password" 
-                      placeholder="••••" 
+                      placeholder="••••••••" 
                       value={officialPassword}
                       onChange={(e) => setOfficialPassword(e.target.value)}
                       className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-10 pr-3 py-2.5 text-xs font-bold text-gray-950 focus:outline-none focus:border-indigo-600 focus:bg-white transition"
+                      required
                     />
                   </div>
                 </div>
@@ -441,10 +494,20 @@ export default function AuthFlow({ onAuthSuccess, onClose, initialRole = null }:
               <div className="pt-2">
                 <button
                   type="submit"
-                  className="w-full bg-indigo-700 hover:bg-indigo-800 text-white py-3 rounded-2xl text-[10px] font-black uppercase tracking-wider transition shadow-sm hover:shadow-md cursor-pointer flex items-center justify-center space-x-1"
+                  disabled={isLoggingIn}
+                  className="w-full bg-indigo-700 hover:bg-indigo-800 text-white py-3 rounded-2xl text-[10px] font-black uppercase tracking-wider transition shadow-sm hover:shadow-md cursor-pointer flex items-center justify-center space-x-1 disabled:opacity-55"
                 >
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Verify Credentials</span>
+                  {isLoggingIn ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Authenticating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>Login as Authority</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

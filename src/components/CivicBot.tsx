@@ -272,9 +272,9 @@ export default function CivicBot({ issues }: CivicBotProps) {
               />
               <button
                 type="submit"
-                disabled={!inputValue.trim()}
+                disabled={!inputValue.trim() || isTyping}
                 className={`w-9 h-9 rounded-full flex items-center justify-center text-white transition shrink-0 ${
-                  inputValue.trim()
+                  inputValue.trim() && !isTyping
                     ? 'bg-[#128c7e] hover:bg-[#0b665c] cursor-pointer'
                     : 'bg-gray-300 cursor-not-allowed'
                 }`}
