@@ -320,6 +320,7 @@ export default function IssuesFeed({
         </button>
         <button
           onClick={() => setSubTab('Scorecard')}
+          id="subtab-scorecard"
           className={`py-2 text-center rounded-lg text-[10px] font-bold transition flex items-center justify-center space-x-1 cursor-pointer ${
             subTab === 'Scorecard' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'
           }`}

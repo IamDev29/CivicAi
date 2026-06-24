@@ -34,6 +34,27 @@ export default function CivicBot({ issues }: CivicBotProps) {
     }
   }, [messages, isTyping, isOpen]);
 
+  useEffect(() => {
+    const handleToggle = (e: any) => {
+      if (e.detail !== undefined) {
+        setIsOpen(e.detail);
+      } else {
+        setIsOpen(prev => !prev);
+      }
+    };
+    const handleSend = (e: any) => {
+      if (e.detail) {
+        handleSendMessage(e.detail);
+      }
+    };
+    window.addEventListener('civicbot-toggle', handleToggle as any);
+    window.addEventListener('civicbot-send-message', handleSend as any);
+    return () => {
+      window.removeEventListener('civicbot-toggle', handleToggle as any);
+      window.removeEventListener('civicbot-send-message', handleSend as any);
+    };
+  }, [messages]);
+
   const handleSendMessage = async (textToSend: string) => {
     if (!textToSend.trim()) return;
 

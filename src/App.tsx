@@ -29,6 +29,7 @@ import IssuesFeed from './components/IssuesFeed';
 import ProfileView from './components/ProfileView';
 import OnboardingModal from './components/OnboardingModal';
 import CivicBot from './components/CivicBot';
+import DemoTour from './components/DemoTour';
 import { APIProvider } from '@vis.gl/react-google-maps';
 
 const API_KEY =
@@ -40,6 +41,7 @@ const hasValidKey = Boolean(API_KEY) && API_KEY !== 'YOUR_API_KEY';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('Report');
+  const [demoMode, setDemoMode] = useState<boolean>(false);
   const [issues, setIssues] = useState<CivicIssue[]>(INITIAL_ISSUES);
   const [userStats, setUserStats] = useState<UserStats>(MOCK_USER_STATS);
   const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>(MOCK_LEADERBOARD);
@@ -360,7 +362,15 @@ export default function App() {
           <div className="w-full max-w-md md:rounded-[40px] md:shadow-2xl md:border-[12px] md:border-gray-900 overflow-hidden bg-white flex flex-col h-screen md:h-[840px] relative">
             
             {/* Sticky Header */}
-            <Header />
+            <Header demoMode={demoMode} setDemoMode={setDemoMode} />
+
+            {/* Guided Tour Controls & Highlights */}
+            <DemoTour 
+              demoMode={demoMode} 
+              setDemoMode={setDemoMode} 
+              activeTab={activeTab} 
+              setActiveTab={setActiveTab} 
+            />
 
             {/* Onboarding Screen for First-Time Users */}
             <AnimatePresence>
@@ -507,6 +517,7 @@ export default function App() {
                   setActiveTab('Report');
                   setSelectedIssueFromMap(null);
                 }}
+                id="tab-button-report"
                 className={`flex flex-col items-center space-y-1 transition-all ${
                   activeTab === 'Report' ? 'text-[#1a73e8] scale-105' : 'text-gray-400 hover:text-gray-600'
                 }`}
@@ -520,6 +531,7 @@ export default function App() {
                   setActiveTab('Map');
                   setSelectedIssueFromMap(null);
                 }}
+                id="tab-button-map"
                 className={`flex flex-col items-center space-y-1 transition-all ${
                   activeTab === 'Map' ? 'text-[#1a73e8] scale-105' : 'text-gray-400 hover:text-gray-600'
                 }`}
@@ -530,6 +542,7 @@ export default function App() {
 
               <button
                 onClick={() => setActiveTab('Dashboard')}
+                id="tab-button-dashboard"
                 className={`flex flex-col items-center space-y-1 transition-all ${
                   activeTab === 'Dashboard' ? 'text-[#1a73e8] scale-105' : 'text-gray-400 hover:text-gray-600'
                 }`}
@@ -543,6 +556,7 @@ export default function App() {
                   setActiveTab('Profile');
                   setSelectedIssueFromMap(null);
                 }}
+                id="tab-button-profile"
                 className={`flex flex-col items-center space-y-1 transition-all ${
                   activeTab === 'Profile' ? 'text-[#1a73e8] scale-105' : 'text-gray-400 hover:text-gray-600'
                 }`}

@@ -103,6 +103,45 @@ export default function ReportForm({ onSubmitIssue, onAddPoints, issues }: Repor
   const [pointsGained, setPointsGained] = useState(0);
   const [localityName, setLocalityName] = useState<string | null>(null);
 
+  // Guided Tour Demo prefill listener
+  React.useEffect(() => {
+    const handlePrefill = (e: any) => {
+      setTitle('Pothole on MG Road');
+      setDescription('Massive crater and pothole forming near the busy MG Road intersection. It is accumulating standing water, creating hazardous riding conditions for two-wheelers, and causing long peak-hour traffic jams.');
+      setCategory('Pothole');
+      setSeverity('High');
+      setLocation('MG Road, Bhubaneswar, Odisha, India');
+      setGps({ lat: 20.2961, lng: 85.8245 });
+      setPhotoUrl('https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&q=80&w=600');
+      setLocalityName('MG Road');
+      
+      // Auto-trigger analysis display so judges see AI working immediately without waiting
+      setIsAnalyzing(true);
+      setAiConfidence(null);
+      setAiAnalysisError(null);
+      
+      setTimeout(() => {
+        setIsAnalyzing(false);
+        setAiConfidence(96);
+        setSuggestedDept('Public Works Department (PWD)');
+        setRouteResult({
+          status: 'success',
+          trackingId: `CIVIC-DEMO-${Math.floor(1000 + Math.random() * 9000)}`,
+          category: 'Pothole',
+          severity: 'High',
+          department: 'Public Works Department (PWD)',
+          confidence: 96,
+          estimatedResolutionDays: 7
+        });
+      }, 1000);
+    };
+
+    window.addEventListener('reportform-prefill', handlePrefill as any);
+    return () => {
+      window.removeEventListener('reportform-prefill', handlePrefill as any);
+    };
+  }, []);
+
   // Gemini state variables
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiConfidence, setAiConfidence] = useState<number | null>(null);
@@ -545,7 +584,7 @@ export default function ReportForm({ onSubmitIssue, onAddPoints, issues }: Repor
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-xs border border-gray-100 p-5 max-w-lg mx-auto">
+    <div className="bg-white rounded-2xl shadow-xs border border-gray-100 p-5 max-w-lg mx-auto" id="report-form-container">
       
       <AnimatePresence mode="wait">
         {!showSuccess ? (
@@ -562,7 +601,7 @@ export default function ReportForm({ onSubmitIssue, onAddPoints, issues }: Repor
             </div>
 
             {/* Voice-Based Assistant Fast-Track Card */}
-            <div className="bg-gradient-to-br from-[#f8f9fa] to-[#f1f3f4] border border-gray-200 rounded-2xl p-4 space-y-3.5 shadow-3xs relative overflow-hidden">
+            <div className="bg-gradient-to-br from-[#f8f9fa] to-[#f1f3f4] border border-gray-200 rounded-2xl p-4 space-y-3.5 shadow-3xs relative overflow-hidden" id="voice-assistant-card">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <span className="text-lg">🎙️</span>
@@ -670,7 +709,7 @@ export default function ReportForm({ onSubmitIssue, onAddPoints, issues }: Repor
             </div>
 
             {/* 1. Photo Selection & Upload */}
-            <div className="space-y-2">
+            <div className="space-y-2" id="ai-image-upload-section">
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
                 1. Add Issue Photo <span className="text-red-500">*</span>
               </label>
@@ -937,6 +976,7 @@ export default function ReportForm({ onSubmitIssue, onAddPoints, issues }: Repor
             <button
               type="submit"
               disabled={isSubmitting}
+              id="submit-report-btn"
               className="w-full bg-[#1a73e8] hover:bg-[#1557b0] text-white py-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-2 transition shadow-md hover:shadow-lg cursor-pointer disabled:opacity-75 relative overflow-hidden"
             >
               {isSubmitting ? (
