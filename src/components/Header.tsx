@@ -7,11 +7,9 @@ import React from 'react';
 import { ShieldCheck, Flame, Bell, Sparkles } from 'lucide-react';
 
 interface HeaderProps {
-  demoMode: boolean;
-  setDemoMode: (active: boolean) => void;
 }
 
-export default function Header({ demoMode, setDemoMode }: HeaderProps) {
+export default function Header({ }: HeaderProps) {
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
       <div className="flex items-center justify-between max-w-lg mx-auto">
@@ -37,20 +35,6 @@ export default function Header({ demoMode, setDemoMode }: HeaderProps) {
 
         {/* Header Actions */}
         <div className="flex items-center space-x-2">
-          {/* Demo Mode Toggle */}
-          <button
-            onClick={() => setDemoMode(!demoMode)}
-            id="demo-mode-toggle"
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider border transition-all duration-150 cursor-pointer active:scale-95 ${
-              demoMode 
-                ? 'bg-amber-100 text-amber-800 border-amber-300 animate-pulse' 
-                : 'bg-[#e8f0fe] text-[#1a73e8] border-[#1a73e8]/30 hover:bg-[#d2e3fc]'
-            }`}
-          >
-            <Sparkles className="w-3 h-3 fill-current shrink-0" />
-            <span>{demoMode ? 'Demo Active' : 'Demo Mode'}</span>
-          </button>
-
           {/* Quick Streak */}
           <div className="hidden sm:flex items-center space-x-1 bg-[#f1f3f4] text-gray-700 px-3 py-1.5 rounded-full text-xs font-semibold border border-gray-200">
             <Flame className="w-3.5 h-3.5 fill-amber-500 text-amber-600 animate-pulse" />

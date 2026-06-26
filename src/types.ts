@@ -33,6 +33,7 @@ export interface CivicIssue {
   comments: Comment[];
   hasUpvoted?: boolean;
   isAiVerified?: boolean;
+  customBadge?: string;
   aiTrustScore?: number;
   aiAnalysisFeedback?: string;
   yesVotes?: number;

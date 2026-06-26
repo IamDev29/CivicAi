@@ -47,11 +47,55 @@ export default function CivicBot({ issues }: CivicBotProps) {
         handleSendMessage(e.detail);
       }
     };
+    const handleDemoType = (e: any) => {
+      setIsOpen(true);
+      const text = "What's the worst area in Ward 12?";
+      let cur = "";
+      let i = 0;
+      setIsTyping(false);
+      setInputValue("");
+      
+      const typingInterval = setInterval(() => {
+        if (i < text.length) {
+          cur += text[i];
+          setInputValue(cur);
+          i++;
+        } else {
+          clearInterval(typingInterval);
+          // Now send the message
+          setTimeout(() => {
+            const userMessage: Message = {
+              id: `msg-user-demo-${Date.now()}`,
+              role: 'user',
+              text: text,
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+            setMessages(prev => [...prev, userMessage]);
+            setInputValue('');
+            setIsTyping(true);
+
+            setTimeout(() => {
+              const botMessage: Message = {
+                id: `msg-bot-demo-${Date.now()}`,
+                role: 'model',
+                text: "Based on real-time database analysis for **Ward 12 (Saheed Nagar)**:\n\n* **Worst Area**: MG Road Junction (4 reported potholes, 2 water leakages)\n* **Key Issues**: Solid waste pileup near public bins (Waste Dumping), damaged streetlights near Patia Square.\n* **Hotspot Status**: Critical severity score of 87%. BMC team is active at Patia Square currently.",
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              };
+              setMessages(prev => [...prev, botMessage]);
+              setIsTyping(false);
+            }, 1000);
+          }, 300);
+        }
+      }, 40);
+    };
+
     window.addEventListener('civicbot-toggle', handleToggle as any);
     window.addEventListener('civicbot-send-message', handleSend as any);
+    window.addEventListener('civicbot-demo-type', handleDemoType as any);
     return () => {
       window.removeEventListener('civicbot-toggle', handleToggle as any);
       window.removeEventListener('civicbot-send-message', handleSend as any);
+      window.removeEventListener('civicbot-demo-type', handleDemoType as any);
     };
   }, [messages]);
 
@@ -231,10 +275,15 @@ export default function CivicBot({ issues }: CivicBotProps) {
               ))}
 
               {isTyping && (
-                <div className="self-start flex flex-col max-w-[85%] animate-pulse">
-                  <div className="bg-white p-3 rounded-2xl rounded-tl-none shadow-3xs border border-gray-150 flex items-center space-x-2">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-[#075e54]" />
-                    <span className="text-[10px] font-black text-[#075e54] uppercase tracking-wider">CivicBot is typing...</span>
+                <div className="self-start flex flex-col w-[75%] space-y-2">
+                  <div className="bg-white p-3.5 rounded-2xl rounded-tl-none shadow-3xs border border-gray-150 space-y-2">
+                    <div className="flex items-center space-x-1.5 pb-1">
+                      <Loader2 className="w-3 h-3 animate-spin text-[#075e54] shrink-0" />
+                      <span className="text-[9px] font-black text-[#075e54] uppercase tracking-wider">CivicBot is thinking...</span>
+                    </div>
+                    <div className="h-3 w-11/12 rounded-sm animate-shimmer"></div>
+                    <div className="h-3 w-5/6 rounded-sm animate-shimmer"></div>
+                    <div className="h-3 w-2/3 rounded-sm animate-shimmer"></div>
                   </div>
                 </div>
               )}

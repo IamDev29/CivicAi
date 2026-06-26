@@ -135,7 +135,7 @@ export default function ProfileView({
       </div>
 
       {/* 2. Leaderboard list (Indian civic focus) */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-xs space-y-3">
+      <div id="profile-leaderboard-section" className="bg-white rounded-2xl border border-gray-100 p-4 shadow-xs space-y-3">
         <div className="flex items-center justify-between border-b border-gray-50 pb-2">
           <h4 className="text-sm font-bold text-gray-900 flex items-center space-x-1.5">
             <Trophy className="w-4 h-4 text-amber-500" />

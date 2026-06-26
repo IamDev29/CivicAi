@@ -31,6 +31,7 @@ interface AuthorityDashboardProps {
     name: string;
     role: string;
     department?: string;
+    isDemo?: boolean;
   };
   issues: CivicIssue[];
   onLogout: () => void;
@@ -72,7 +73,16 @@ export default function AuthorityDashboard({
   const [sortBy, setSortBy] = useState<'priority' | 'oldest' | 'upvotes'>('priority');
 
   // Expanded issue details ID state
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(() => {
+    if (currentUser.isDemo && currentUser.role === 'authority') {
+      return "demo-auth-issue-1";
+    }
+    return null;
+  });
+
+  const [showWorkOrderHighlight, setShowWorkOrderHighlight] = useState<boolean>(() => {
+    return !!(currentUser.isDemo && currentUser.role === 'authority');
+  });
 
   // Modal / Action states per issue
   const [expectedDates, setExpectedDates] = useState<{ [key: string]: string }>({});
@@ -129,16 +139,17 @@ export default function AuthorityDashboard({
   });
 
   // Calculate Department Stats
-  const issuesAssigned = deptIssues.length;
-  const issuesResolved = deptIssues.filter(i => i.status === 'Resolved').length;
+  const isDemoMode = !!currentUser.isDemo;
+  const issuesAssigned = isDemoMode ? 12 : deptIssues.length;
+  const issuesResolved = isDemoMode ? 8 : deptIssues.filter(i => i.status === 'Resolved').length;
   
   // Calculate average resolution time (mock + actual mix)
-  const avgResTime = deptIssues.filter(i => i.status === 'Resolved').length > 0
+  const avgResTime = isDemoMode ? '4.2' : (deptIssues.filter(i => i.status === 'Resolved').length > 0
     ? (deptIssues.filter(i => i.status === 'Resolved').reduce((acc, curr) => acc + getDaysOpen(curr.date), 0) / issuesResolved).toFixed(1)
-    : '3.4';
+    : '3.4');
 
   // Overdue count (not resolved and days open > 5)
-  const overdueCount = deptIssues.filter(i => i.status !== 'Resolved' && getDaysOpen(i.date) > 5).length;
+  const overdueCount = isDemoMode ? 2 : deptIssues.filter(i => i.status !== 'Resolved' && getDaysOpen(i.date) > 5).length;
 
   // Handle Mark In Progress
   const handleMarkInProgress = (issueId: string) => {
@@ -444,6 +455,17 @@ export default function AuthorityDashboard({
                           <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider ${getStatusBadgeClass(issue.status)}`}>
                             {issue.status}
                           </span>
+                          {issue.customBadge && (
+                            <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                              issue.customBadge === 'URGENT'
+                                ? 'bg-rose-600 text-white animate-pulse'
+                                : issue.customBadge === 'escalated'
+                                  ? 'bg-amber-600 text-slate-900 font-extrabold'
+                                  : 'bg-indigo-600 text-white'
+                            }`}>
+                              {issue.customBadge}
+                            </span>
+                          )}
                         </div>
                         
                         <h3 className="text-xs font-black text-white leading-tight truncate">{issue.title}</h3>
@@ -458,7 +480,11 @@ export default function AuthorityDashboard({
 
                       <div className="flex flex-col items-end justify-between self-stretch shrink-0 text-right">
                         <span className="text-[10px] font-extrabold text-indigo-300">
-                          {daysOpen} {daysOpen === 1 ? 'day' : 'days'} open
+                          {issue.id === 'demo-auth-issue-1' 
+                            ? '2 days overdue' 
+                            : issue.id === 'demo-auth-issue-2' 
+                              ? 'assigned today' 
+                              : `${daysOpen} ${daysOpen === 1 ? 'day' : 'days'} open`}
                         </span>
                         
                         <div className="text-[8px] text-slate-500 font-bold mt-1 uppercase tracking-wider">
@@ -516,23 +542,52 @@ export default function AuthorityDashboard({
                             <div className="flex justify-between items-center pt-1 border-t border-slate-800">
                               <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Administrative Actions</span>
                               
-                              <button
-                                onClick={() => handleGenerateWorkOrder(issue)}
-                                disabled={generatingWorkOrderId === issue.id}
-                                className="flex items-center space-x-1 text-[9px] font-bold bg-indigo-600/20 text-indigo-300 border border-indigo-500/40 px-2.5 py-1.5 rounded-xl hover:bg-indigo-600/30 transition cursor-pointer"
-                              >
-                                {generatingWorkOrderId === issue.id ? (
-                                  <>
-                                    <Loader2 className="w-3 h-3 animate-spin text-indigo-400" />
-                                    <span>Generating Order...</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <FileText className="w-3 h-3 text-indigo-400" />
-                                    <span>Generate AI Work Order</span>
-                                  </>
+                              <div className="relative">
+                                <button
+                                  id="btn-generate-work-order"
+                                  onClick={() => {
+                                    handleGenerateWorkOrder(issue);
+                                    setShowWorkOrderHighlight(false);
+                                  }}
+                                  disabled={generatingWorkOrderId === issue.id}
+                                  className={`flex items-center space-x-1.5 text-[9px] font-bold px-3 py-1.5 rounded-xl transition cursor-pointer relative ${
+                                    showWorkOrderHighlight && issue.id === 'demo-auth-issue-1'
+                                      ? 'bg-amber-500 text-slate-900 border-2 border-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.7)] animate-pulse'
+                                      : 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-600/30'
+                                  }`}
+                                >
+                                  {generatingWorkOrderId === issue.id ? (
+                                    <>
+                                      <Loader2 className="w-3 h-3 animate-spin text-amber-500" />
+                                      <span>Generating Order...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <FileText className={`w-3 h-3 ${showWorkOrderHighlight && issue.id === 'demo-auth-issue-1' ? 'text-slate-900' : 'text-indigo-400'}`} />
+                                      <span>Generate AI Work Order</span>
+                                    </>
+                                  )}
+                                </button>
+
+                                {showWorkOrderHighlight && issue.id === 'demo-auth-issue-1' && (
+                                  <div className="absolute top-full mt-2.5 right-0 w-52 bg-slate-900 border border-amber-500/40 text-slate-100 rounded-2xl p-3 shadow-2xl z-50 text-[10.5px] font-bold leading-normal">
+                                    <div className="absolute top-0 right-8 -translate-y-1 w-2.5 h-2.5 bg-slate-900 rotate-45 border-l border-t border-amber-500/40" />
+                                    <p className="text-amber-400 mb-1 flex items-center space-x-1 uppercase text-[9px] tracking-wider font-black">
+                                      <span>⚡ AI Smart Work Order</span>
+                                    </p>
+                                    <p className="text-slate-300 font-medium">Click this to generate an official government work order using Gemini</p>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowWorkOrderHighlight(false);
+                                      }}
+                                      className="mt-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[9px] font-black px-2.5 py-1 rounded-lg transition active:scale-95"
+                                    >
+                                      Got it
+                                    </button>
+                                  </div>
                                 )}
-                              </button>
+                              </div>
                             </div>
 
                             {/* ACTION TRIGGERS BAR */}

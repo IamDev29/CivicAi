@@ -138,3 +138,192 @@ export const MOCK_USER_STATS: UserStats = {
   upvotesGiven: 12,
   badges: ['First Reporter', 'Hero']
 };
+
+export const DEMO_ISSUES: CivicIssue[] = [
+  {
+    id: "demo-issue-1",
+    title: "Large pothole damaging vehicles",
+    description: "A very deep and dangerous pothole right in the middle of MG Road Junction. Several vehicles have suffered tire damage already.",
+    category: "Pothole",
+    severity: "Critical",
+    location: "MG Road Junction",
+    gps: { lat: 20.2961, lng: 85.8245 },
+    photoUrl: "https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&q=80&w=600",
+    upvotes: 47,
+    status: "Open",
+    date: "2 days ago",
+    reporterName: "Amit Das",
+    comments: [
+      { id: "c1", userName: "Sunita Mishra", text: "This is extremely dangerous at night!", date: "1 day ago" }
+    ],
+    isAiVerified: true,
+    aiTrustScore: 98,
+    aiAnalysisFeedback: "Gemini Vision has verified this pothole and categorized it under Public Works Department (PWD)."
+  },
+  {
+    id: "demo-issue-2",
+    title: "Street light not working 3 weeks",
+    description: "Entire street light pole is out, making the corner at Patia Square dark and unsafe for pedestrians.",
+    category: "Damaged Streetlight",
+    severity: "High",
+    location: "Patia Square",
+    gps: { lat: 20.3588, lng: 85.8333 },
+    photoUrl: "https://images.unsplash.com/photo-1509395062183-67c5ad6faff9?auto=format&fit=crop&q=80&w=600",
+    upvotes: 23,
+    status: "In Progress",
+    date: "5 days ago",
+    reporterName: "Priya Patel",
+    comments: [
+      { id: "c2", userName: "Rahul Sharma", text: "Electricity Board team said they are waiting for bulbs.", date: "2 days ago" }
+    ],
+    isAiVerified: true,
+    aiTrustScore: 92,
+    aiAnalysisFeedback: "Assigned to Electricity Board for repair."
+  },
+  {
+    id: "demo-issue-3",
+    title: "Water pipeline leaking on footpath",
+    description: "Fresh drinking water is leaking and flooding the footpath near Nayapalli Colony.",
+    category: "Water Leakage",
+    severity: "Medium",
+    location: "Nayapalli Colony",
+    gps: { lat: 20.2905, lng: 85.8012 },
+    photoUrl: "https://images.unsplash.com/photo-1542044896530-05d85be9b11a?auto=format&fit=crop&q=80&w=600",
+    upvotes: 12,
+    status: "Open",
+    date: "7 days ago",
+    reporterName: "Rajan Mohanty",
+    comments: [],
+    isAiVerified: true,
+    aiTrustScore: 85,
+    aiAnalysisFeedback: "Community verified leakage reported to WATCO."
+  },
+  {
+    id: "demo-issue-4",
+    title: "Garbage not collected 10 days",
+    description: "Huge pile of solid waste dumped in the public collection corner at Saheed Nagar Ward 12.",
+    category: "Waste Dumping",
+    severity: "High",
+    location: "Saheed Nagar",
+    gps: { lat: 20.2882, lng: 85.8436 },
+    photoUrl: "https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?auto=format&fit=crop&q=80&w=600",
+    upvotes: 31,
+    status: "Open",
+    date: "1 day ago",
+    reporterName: "Rahul Sharma",
+    comments: [],
+    isAiVerified: true,
+    aiTrustScore: 96,
+    aiAnalysisFeedback: "Sanitation waste pile detected, auto-scheduled for BMC pickup."
+  },
+  {
+    id: "demo-issue-5",
+    title: "Broken footpath causing accidents",
+    description: "Footpath slabs are broken and open near Bhubaneswar Old Town temple complex.",
+    category: "Broken Footpath",
+    severity: "Medium",
+    location: "Old Town",
+    gps: { lat: 20.2444, lng: 85.8439 },
+    photoUrl: "https://images.unsplash.com/photo-1595113316349-9fa4ee24f884?auto=format&fit=crop&q=80&w=600",
+    upvotes: 18,
+    status: "Resolved",
+    date: "15 days ago",
+    reporterName: "Deepa Nair",
+    comments: [],
+    isAiVerified: true,
+    aiTrustScore: 89,
+    resolutionPhotoUrl: "https://images.unsplash.com/photo-1595113316349-9fa4ee24f884?auto=format&fit=crop&q=80&w=600",
+    resolutionAiVerdict: {
+      isResolved: true,
+      confidence: 95,
+      explanation: "Footpath tiles replaced and visual check confirms flat path surface.",
+      whatChanged: "New concrete slabs installed.",
+      whatRemains: "None."
+    }
+  }
+];
+
+export const DEMO_LEADERBOARD: LeaderboardUser[] = [
+  { rank: 1, name: "Priya Patel", points: 892, badge: "🏆 Hero" },
+  { rank: 2, name: "Rahul Sharma (You)", points: 340, badge: "👁 Watchdog", isCurrentUser: true },
+  { rank: 3, name: "Amit Das", points: 287, badge: "⭐ Validator" },
+  { rank: 4, name: "Sunita Mishra", points: 245, badge: "🔍 First Reporter" },
+  { rank: 5, name: "Rajan Mohanty", points: 198, badge: "👁 Watchdog" },
+  { rank: 6, name: "Deepa Nair", points: 176, badge: "⭐ Validator" },
+  { rank: 7, name: "Vikram Singh", points: 134, badge: "🔍 First Reporter" },
+  { rank: 8, name: "Ananya Roy", points: 98, badge: "🌱 New Member" },
+  { rank: 9, name: "Kiran Kumar", points: 67, badge: "🌱 New Member" },
+  { rank: 10, name: "Meena Sharma", points: 43, badge: "🌱 New Member" }
+];
+
+export const DEMO_USER_STATS: UserStats = {
+  name: "Rahul Sharma",
+  points: 340,
+  badge: "Watchdog 👁",
+  rank: 2,
+  reportsCount: 4,
+  resolvedCount: 1,
+  level: 2,
+  upvotesGiven: 0,
+  badges: ["Watchdog", "First Reporter"]
+};
+
+export const DEMO_AUTHORITY_ISSUES: CivicIssue[] = [
+  {
+    id: "demo-auth-issue-1",
+    title: "Critical pothole MG Road",
+    description: "A very deep and dangerous pothole right in the middle of MG Road Junction. Several vehicles have suffered tire damage already.",
+    category: "Pothole",
+    severity: "Critical",
+    location: "MG Road Junction",
+    gps: { lat: 20.2961, lng: 85.8245 },
+    photoUrl: "https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&q=80&w=600",
+    upvotes: 47,
+    status: "Open",
+    date: "2026-06-24", // 2 days open/overdue
+    reporterName: "Amit Das",
+    comments: [
+      { id: "c1", userName: "Sunita Mishra", text: "This is extremely dangerous at night!", date: "1 day ago" }
+    ],
+    isAiVerified: true,
+    aiTrustScore: 98,
+    customBadge: "URGENT"
+  },
+  {
+    id: "demo-auth-issue-2",
+    title: "Broken footpath Old Town",
+    description: "Footpath slabs are broken and open near Bhubaneswar Old Town temple complex.",
+    category: "Broken Footpath",
+    severity: "Medium",
+    location: "Old Town",
+    gps: { lat: 20.2444, lng: 85.8439 },
+    photoUrl: "https://images.unsplash.com/photo-1595113316349-9fa4ee24f884?auto=format&fit=crop&q=80&w=600",
+    upvotes: 18,
+    status: "In Progress",
+    date: "2026-06-26", // today
+    reporterName: "Deepa Nair",
+    comments: [],
+    isAiVerified: true,
+    aiTrustScore: 89,
+    customBadge: "assigned today"
+  },
+  {
+    id: "demo-auth-issue-3",
+    title: "Road cave-in near Station",
+    description: "Main road has caved in near Bhubaneswar Railway Station, blocking one entire lane.",
+    category: "Pothole",
+    severity: "High",
+    location: "Station Road",
+    gps: { lat: 20.2744, lng: 85.8439 },
+    photoUrl: "https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&q=80&w=600",
+    upvotes: 61,
+    status: "Open",
+    date: "2026-06-22", // 4 days ago
+    reporterName: "Rajan Mohanty",
+    comments: [],
+    isAiVerified: true,
+    aiTrustScore: 94,
+    customBadge: "escalated"
+  }
+];
+

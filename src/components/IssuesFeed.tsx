@@ -76,6 +76,15 @@ export default function IssuesFeed({
   const [newCommentTexts, setNewCommentTexts] = useState<{ [key: string]: string }>({});
   const [copiedIssueId, setCopiedIssueId] = useState<string | null>(null);
   const [isPostingComment, setIsPostingComment] = useState<{ [key: string]: boolean }>({});
+  const [isFeedLoading, setIsFeedLoading] = useState(true);
+
+  React.useEffect(() => {
+    setIsFeedLoading(true);
+    const timer = setTimeout(() => {
+      setIsFeedLoading(false);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [selectedCategory]);
 
   // States for verification
   const [verifyingIssues, setVerifyingIssues] = useState<{ [key: string]: boolean }>({});
@@ -201,7 +210,9 @@ export default function IssuesFeed({
     if (a.status === 'Resolved' && b.status !== 'Resolved') return 1;
     if (a.status !== 'Resolved' && b.status === 'Resolved') return -1;
     // Otherwise, newer first
-    return new Date(b.date).getTime() - new Date(a.date).getTime();
+    const timeA = isNaN(Date.parse(a.date)) ? 0 : new Date(a.date).getTime();
+    const timeB = isNaN(Date.parse(b.date)) ? 0 : new Date(b.date).getTime();
+    return timeB - timeA;
   });
 
   const getCategoryIcon = (category: IssueCategory) => {
@@ -417,8 +428,47 @@ export default function IssuesFeed({
       </div>
 
       {/* 3. Feed List */}
-      <div className="space-y-4">
-        {sortedIssues.length > 0 ? (
+      <div id="issues-feed-container" className="space-y-4">
+        {isFeedLoading ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((n) => (
+              <div key={n} className="bg-white rounded-xl overflow-hidden border border-gray-150 shadow-2xs">
+                {/* Image Shimmer */}
+                <div className="h-44 bg-gray-200 animate-shimmer relative">
+                  <div className="absolute top-3 left-3 flex gap-2">
+                    <div className="h-5 w-24 bg-gray-300 rounded-full animate-shimmer"></div>
+                    <div className="h-5 w-20 bg-gray-300 rounded-full animate-shimmer"></div>
+                  </div>
+                  <div className="absolute bottom-3 left-3 right-3 flex justify-between">
+                    <div className="h-4 w-28 bg-gray-300 rounded animate-shimmer"></div>
+                    <div className="h-4 w-16 bg-gray-300 rounded animate-shimmer"></div>
+                  </div>
+                </div>
+                {/* AI Trust banner shimmer */}
+                <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+                  <div className="h-3 w-28 bg-gray-200 rounded animate-shimmer"></div>
+                  <div className="h-3 w-40 bg-gray-200 rounded animate-shimmer"></div>
+                </div>
+                {/* Content shimmer */}
+                <div className="p-4 space-y-3">
+                  <div className="h-4 w-3/4 bg-gray-200 rounded animate-shimmer"></div>
+                  <div className="space-y-1.5">
+                    <div className="h-3 w-full bg-gray-100 rounded animate-shimmer"></div>
+                    <div className="h-3 w-5/6 bg-gray-100 rounded animate-shimmer"></div>
+                  </div>
+                  <div className="h-6 w-full bg-gray-100 rounded animate-shimmer"></div>
+                  <div className="flex justify-between items-center pt-2 border-t border-gray-50">
+                    <div className="flex space-x-4">
+                      <div className="h-4 w-12 bg-gray-200 rounded animate-shimmer"></div>
+                      <div className="h-4 w-16 bg-gray-200 rounded animate-shimmer"></div>
+                    </div>
+                    <div className="h-4 w-20 bg-gray-200 rounded animate-shimmer"></div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : sortedIssues.length > 0 ? (
           sortedIssues.map((issue) => {
             const isExpanded = expandedIssueId === issue.id;
 
@@ -439,7 +489,23 @@ export default function IssuesFeed({
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"
                   />
-                  <div className="absolute inset-0 bg-linear-to-t from-black/50 via-transparent to-transparent"></div>
+                  {/* Tint overlays for Demo mode issues */}
+                  {issue.id === "demo-issue-1" && (
+                    <div className="absolute inset-0 bg-red-600/25 mix-blend-multiply pointer-events-none" />
+                  )}
+                  {issue.id === "demo-issue-2" && (
+                    <div className="absolute inset-0 bg-amber-500/25 mix-blend-multiply pointer-events-none" />
+                  )}
+                  {issue.id === "demo-issue-3" && (
+                    <div className="absolute inset-0 bg-blue-600/25 mix-blend-multiply pointer-events-none" />
+                  )}
+                  {issue.id === "demo-issue-4" && (
+                    <div className="absolute inset-0 bg-emerald-600/25 mix-blend-multiply pointer-events-none" />
+                  )}
+                  {issue.id === "demo-issue-5" && (
+                    <div className="absolute inset-0 bg-gray-600/30 mix-blend-color pointer-events-none grayscale" />
+                  )}
+                  <div className="absolute inset-0 bg-linear-to-t from-black/50 via-transparent to-transparent pointer-events-none"></div>
 
                   {/* Badges */}
                   <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[85%]">
@@ -677,9 +743,21 @@ export default function IssuesFeed({
                             </div>
 
                             {verifyingIssues[issue.id] && (
-                              <div className="flex items-center space-x-2.5 text-xs text-[#1a73e8] bg-white p-3 rounded-lg border border-blue-100 animate-pulse">
-                                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                                <span className="font-extrabold text-[10px] uppercase tracking-wider">AI Vision verification agent is comparing images...</span>
+                              <div className="space-y-3 bg-blue-50/20 border border-blue-100 rounded-xl p-4 shadow-3xs">
+                                <div className="flex items-center space-x-2 text-xs text-[#1a73e8]">
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                                  <span className="font-extrabold text-[9px] uppercase tracking-wider">AI Vision comparing before & after states...</span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div className="space-y-1.5">
+                                    <div className="h-16 bg-gray-200 rounded-lg animate-shimmer"></div>
+                                    <div className="h-2.5 w-3/4 bg-gray-200 rounded-sm animate-shimmer"></div>
+                                  </div>
+                                  <div className="space-y-1.5">
+                                    <div className="h-16 bg-gray-200 rounded-lg animate-shimmer"></div>
+                                    <div className="h-2.5 w-2/3 bg-gray-200 rounded-sm animate-shimmer"></div>
+                                  </div>
+                                </div>
                               </div>
                             )}
 
@@ -888,43 +966,43 @@ export default function IssuesFeed({
         /* Predictive Insights Tab */
         <div className="space-y-5 pb-8">
           {isInsightsLoading ? (
-            <div className="space-y-4 animate-pulse">
+            <div className="space-y-4">
               {/* Summary Card Skeleton */}
               <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-2xs space-y-3">
                 <div className="flex items-center space-x-2">
-                  <div className="h-4 w-4 bg-gray-200 rounded-full"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                  <div className="h-4 w-4 bg-gray-200 rounded-full animate-shimmer"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/3 animate-shimmer"></div>
                 </div>
                 <div className="space-y-2">
-                  <div className="h-3 bg-gray-200 rounded w-full"></div>
-                  <div className="h-3 bg-gray-200 rounded w-5/6"></div>
+                  <div className="h-3 bg-gray-200 rounded w-full animate-shimmer"></div>
+                  <div className="h-3 bg-gray-200 rounded w-5/6 animate-shimmer"></div>
                 </div>
               </div>
 
               {/* Bento Grid Skeleton */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-white p-3.5 rounded-xl border border-gray-100 shadow-2xs space-y-2">
-                  <div className="h-2.5 bg-gray-200 rounded w-2/3"></div>
-                  <div className="h-3.5 bg-gray-200 rounded w-1/2"></div>
+                  <div className="h-2.5 bg-gray-200 rounded w-2/3 animate-shimmer"></div>
+                  <div className="h-3.5 bg-gray-200 rounded w-1/2 animate-shimmer"></div>
                 </div>
                 <div className="bg-white p-3.5 rounded-xl border border-gray-100 shadow-2xs space-y-2">
-                  <div className="h-2.5 bg-gray-200 rounded w-1/2"></div>
-                  <div className="h-3.5 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-2.5 bg-gray-200 rounded w-1/2 animate-shimmer"></div>
+                  <div className="h-3.5 bg-gray-200 rounded w-3/4 animate-shimmer"></div>
                 </div>
                 <div className="col-span-2 bg-white p-3.5 rounded-xl border border-gray-100 shadow-2xs space-y-2">
-                  <div className="h-2.5 bg-gray-200 rounded w-1/3"></div>
-                  <div className="h-3.5 bg-gray-200 rounded w-5/6"></div>
+                  <div className="h-2.5 bg-gray-200 rounded w-1/3 animate-shimmer"></div>
+                  <div className="h-3.5 bg-gray-200 rounded w-5/6 animate-shimmer"></div>
                 </div>
               </div>
 
               {/* Chart Skeletons */}
               <div className="bg-white p-4 h-52 rounded-xl border border-gray-100 shadow-2xs space-y-3">
-                <div className="h-3 bg-gray-200 rounded w-1/4"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/4 animate-shimmer"></div>
                 <div className="h-32 bg-gray-50 rounded-lg flex items-end p-2 space-x-4 justify-around">
-                  <div className="bg-gray-200 w-12 h-1/3 rounded-t"></div>
-                  <div className="bg-gray-200 w-12 h-2/3 rounded-t"></div>
-                  <div className="bg-gray-200 w-12 h-1/2 rounded-t"></div>
-                  <div className="bg-gray-200 w-12 h-4/5 rounded-t"></div>
+                  <div className="bg-gray-200 w-12 h-1/3 rounded-t animate-shimmer"></div>
+                  <div className="bg-gray-200 w-12 h-2/3 rounded-t animate-shimmer"></div>
+                  <div className="bg-gray-200 w-12 h-1/2 rounded-t animate-shimmer"></div>
+                  <div className="bg-gray-200 w-12 h-4/5 rounded-t animate-shimmer"></div>
                 </div>
               </div>
             </div>

@@ -282,10 +282,11 @@ export default function WardScorecard() {
                 <div className="space-y-2">
                   <span className="text-[9px] font-extrabold text-gray-400 uppercase tracking-wider block">Auditor Assessment</span>
                   {isAnalyzing ? (
-                    <div className="space-y-2 py-4 animate-pulse">
-                      <div className="h-3 bg-gray-100 rounded w-full"></div>
-                      <div className="h-3 bg-gray-100 rounded w-5/6"></div>
-                      <div className="h-3 bg-gray-100 rounded w-4/5"></div>
+                    <div className="space-y-2.5 py-3">
+                      <div className="h-3 bg-gray-200 rounded-sm w-full animate-shimmer"></div>
+                      <div className="h-3 bg-gray-200 rounded-sm w-11/12 animate-shimmer"></div>
+                      <div className="h-3 bg-gray-200 rounded-sm w-5/6 animate-shimmer"></div>
+                      <div className="h-3 bg-gray-200 rounded-sm w-2/3 animate-shimmer"></div>
                     </div>
                   ) : (
                     <p className="text-xs text-gray-700 leading-relaxed font-semibold bg-gray-50/80 p-3.5 rounded-xl border border-gray-100">

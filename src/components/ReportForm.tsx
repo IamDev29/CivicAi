@@ -105,45 +105,6 @@ export default function ReportForm({ onSubmitIssue, onAddPoints, issues }: Repor
   const [pointsGained, setPointsGained] = useState(0);
   const [localityName, setLocalityName] = useState<string | null>(null);
 
-  // Guided Tour Demo prefill listener
-  React.useEffect(() => {
-    const handlePrefill = (e: any) => {
-      setTitle('Pothole on MG Road');
-      setDescription('Massive crater and pothole forming near the busy MG Road intersection. It is accumulating standing water, creating hazardous riding conditions for two-wheelers, and causing long peak-hour traffic jams.');
-      setCategory('Pothole');
-      setSeverity('High');
-      setLocation('MG Road, Bhubaneswar, Odisha, India');
-      setGps({ lat: 20.2961, lng: 85.8245 });
-      setPhotoUrl('https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&q=80&w=600');
-      setLocalityName('MG Road');
-      
-      // Auto-trigger analysis display so judges see AI working immediately without waiting
-      setIsAnalyzing(true);
-      setAiConfidence(null);
-      setAiAnalysisError(null);
-      
-      setTimeout(() => {
-        setIsAnalyzing(false);
-        setAiConfidence(96);
-        setSuggestedDept('Public Works Department (PWD)');
-        setRouteResult({
-          status: 'success',
-          trackingId: `CIVIC-DEMO-${Math.floor(1000 + Math.random() * 9000)}`,
-          category: 'Pothole',
-          severity: 'High',
-          department: 'Public Works Department (PWD)',
-          confidence: 96,
-          estimatedResolutionDays: 7
-        });
-      }, 1000);
-    };
-
-    window.addEventListener('reportform-prefill', handlePrefill as any);
-    return () => {
-      window.removeEventListener('reportform-prefill', handlePrefill as any);
-    };
-  }, []);
-
   // Track scroll of form parent to show floating Submit button on mobile after 50% scroll
   React.useEffect(() => {
     const handleScroll = () => {
@@ -917,7 +878,7 @@ Check real-time status updates and validate issues on CivicAI! 🌍`;
                     <span>Gemini AI Coprocessor</span>
                   </span>
                   {isAnalyzing && (
-                    <span className="flex items-center space-x-1 text-[10px] text-blue-600 font-extrabold animate-pulse uppercase tracking-wider">
+                    <span className="flex items-center space-x-1 text-[10px] text-blue-600 font-extrabold uppercase tracking-wider">
                       <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
                       <span>Analyzing Photo...</span>
                     </span>
@@ -929,6 +890,20 @@ Check real-time status updates and validate issues on CivicAI! 🌍`;
                     </span>
                   )}
                 </div>
+
+                {/* Shimmer skeleton for categorization while analyzing */}
+                {isAnalyzing && (
+                  <div className="grid grid-cols-2 gap-2 text-xs bg-white p-2.5 rounded-lg border border-gray-150">
+                    <div className="space-y-1.5">
+                      <span className="block text-[8px] font-extrabold text-gray-400 uppercase tracking-widest">Confidence Score</span>
+                      <div className="h-4 w-16 bg-gray-200 rounded-sm animate-shimmer"></div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <span className="block text-[8px] font-extrabold text-gray-400 uppercase tracking-widest">Suggested Department</span>
+                      <div className="h-4 w-28 bg-gray-200 rounded-sm animate-shimmer"></div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Confidence Score & Suggested Dept details */}
                 {!isAnalyzing && aiConfidence !== null && (

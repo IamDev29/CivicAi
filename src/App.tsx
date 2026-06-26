@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   AlertTriangle, 
   Compass, 
@@ -12,13 +12,23 @@ import {
   Sparkles,
   Award,
   Bell,
-  Volume2
+  Volume2,
+  X,
+  ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 // Types & Mock Data
 import { CivicIssue, LeaderboardUser, UserStats, IssueStatus } from './types';
-import { INITIAL_ISSUES, MOCK_LEADERBOARD, MOCK_USER_STATS } from './mockData';
+import { 
+  INITIAL_ISSUES, 
+  MOCK_LEADERBOARD, 
+  MOCK_USER_STATS,
+  DEMO_ISSUES,
+  DEMO_LEADERBOARD,
+  DEMO_USER_STATS,
+  DEMO_AUTHORITY_ISSUES
+} from './mockData';
 
 // Subcomponents
 import Header from './components/Header';
@@ -29,10 +39,10 @@ import IssuesFeed from './components/IssuesFeed';
 import ProfileView from './components/ProfileView';
 import OnboardingModal from './components/OnboardingModal';
 import CivicBot from './components/CivicBot';
-import DemoTour from './components/DemoTour';
 import LandingPage from './components/LandingPage';
 import AuthFlow from './components/AuthFlow';
 import AuthorityDashboard from './components/AuthorityDashboard';
+import AutoDemoWalkthrough from './components/AutoDemoWalkthrough';
 import { APIProvider } from '@vis.gl/react-google-maps';
 
 const API_KEY =
@@ -43,7 +53,7 @@ const API_KEY =
 const hasValidKey = Boolean(API_KEY) && API_KEY !== 'YOUR_API_KEY';
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<{ name: string; ward: string; role: string; points: number; badges: string[]; department?: string } | null>(() => {
+  const [currentUser, setCurrentUser] = useState<{ name: string; ward: string; role: string; points: number; badges: string[]; department?: string; isDemo?: boolean } | null>(() => {
     if (typeof window !== 'undefined' && window.localStorage) {
       const stored = localStorage.getItem('civic_current_user');
       if (stored) {
@@ -57,23 +67,38 @@ export default function App() {
     return null;
   });
 
-  const [activeTab, setActiveTab] = useState<string>('Report');
-  const [demoMode, setDemoMode] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<string>('Dashboard');
+  
   const [showLanding, setShowLanding] = useState<boolean>(() => {
     if (typeof window !== 'undefined' && window.localStorage) {
       return !localStorage.getItem('civic_current_user');
     }
     return true;
   });
-  const [issues, setIssues] = useState<CivicIssue[]>(INITIAL_ISSUES);
-  
-  const [userStats, setUserStats] = useState<UserStats>(() => {
-    const defaultStats = { ...MOCK_USER_STATS };
+
+  const [issues, setIssues] = useState<CivicIssue[]>(() => {
     if (typeof window !== 'undefined' && window.localStorage) {
       const stored = localStorage.getItem('civic_current_user');
       if (stored) {
         try {
           const user = JSON.parse(stored);
+          if (user.isDemo) {
+            if (user.role === 'authority') return DEMO_AUTHORITY_ISSUES;
+            return DEMO_ISSUES;
+          }
+        } catch (e) {}
+      }
+    }
+    return INITIAL_ISSUES;
+  });
+  
+  const [userStats, setUserStats] = useState<UserStats>(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const stored = localStorage.getItem('civic_current_user');
+      if (stored) {
+        try {
+          const user = JSON.parse(stored);
+          if (user.isDemo) return DEMO_USER_STATS;
           return {
             name: user.name,
             points: user.points || 0,
@@ -85,23 +110,22 @@ export default function App() {
             upvotesGiven: 0,
             badges: user.badges || []
           };
-        } catch (e) {
-          // fallback
-        }
+        } catch (e) {}
       }
     }
-    return defaultStats;
+    return MOCK_USER_STATS;
   });
 
   const [leaderboard, setLeaderboard] = useState<LeaderboardUser[]>(() => {
-    let list = [...MOCK_LEADERBOARD];
     if (typeof window !== 'undefined' && window.localStorage) {
       const stored = localStorage.getItem('civic_current_user');
       if (stored) {
         try {
           const user = JSON.parse(stored);
+          if (user.isDemo) return DEMO_LEADERBOARD;
+          let list = [...MOCK_LEADERBOARD];
           const userNameLabel = `You (${user.name})`;
-          list = list.map(u => {
+          return list.map(u => {
             if (u.isCurrentUser) {
               return {
                 ...u,
@@ -112,12 +136,10 @@ export default function App() {
             }
             return u;
           });
-        } catch (e) {
-          // fallback
-        }
+        } catch (e) {}
       }
     }
-    return list;
+    return MOCK_LEADERBOARD;
   });
 
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
@@ -132,10 +154,7 @@ export default function App() {
     return true;
   });
   
-  // Selected issue from Map to auto-expand in Dashboard
   const [selectedIssueFromMap, setSelectedIssueFromMap] = useState<CivicIssue | null>(null);
-
-  // Status Alerts for points or level up
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [showLevelUp, setShowLevelUp] = useState<boolean>(false);
 
@@ -145,6 +164,103 @@ export default function App() {
     setTimeout(() => {
       setAlertMessage(null);
     }, 3000);
+  };
+
+  // Cinematic Demo States
+  const [isDemoIntroPlaying, setIsDemoIntroPlaying] = useState<boolean>(false);
+  const [demoProgress, setDemoProgress] = useState<number>(0);
+  const [typedText, setTypedText] = useState<string>('');
+  const [isWalkthroughActive, setIsWalkthroughActive] = useState<boolean>(false);
+  const [authorityTransitionMessage, setAuthorityTransitionMessage] = useState<string | null>(null);
+
+  const handleTakeControl = () => {
+    setIsWalkthroughActive(false);
+  };
+
+  const handleSeeAuthorityPortal = () => {
+    setIsWalkthroughActive(false);
+    setAuthorityTransitionMessage("Switching to Authority View — PWD Department");
+    setTimeout(() => {
+      setAuthorityTransitionMessage(null);
+      const officialUser = {
+        name: "PWD Officer",
+        department: "Public Works Dept (PWD)",
+        role: "authority",
+        isDemo: true
+      };
+      localStorage.setItem('civic_current_user', JSON.stringify(officialUser));
+      setCurrentUser(officialUser);
+      setIssues(DEMO_AUTHORITY_ISSUES);
+    }, 1000);
+  };
+
+  useEffect(() => {
+    if (isDemoIntroPlaying) {
+      setDemoProgress(0);
+      setTypedText('');
+      
+      const progressTimer = setInterval(() => {
+        setDemoProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(progressTimer);
+            return 100;
+          }
+          return prev + 5;
+        });
+      }, 100);
+
+      const targetText = "Welcome to CivicAI Demo";
+      let currentIndex = 0;
+      const typingTimer = setInterval(() => {
+        if (currentIndex < targetText.length) {
+          setTypedText(targetText.slice(0, currentIndex + 1));
+          currentIndex++;
+        } else {
+          clearInterval(typingTimer);
+        }
+      }, 50);
+
+      return () => {
+        clearInterval(progressTimer);
+        clearInterval(typingTimer);
+      };
+    }
+  }, [isDemoIntroPlaying]);
+
+  const handleTryDemo = () => {
+    setIsDemoIntroPlaying(true);
+    
+    const demoUser = {
+      name: "Rahul Sharma",
+      ward: "Ward 12 - Saheed Nagar",
+      role: "citizen",
+      points: 340,
+      badges: ["Watchdog", "First Reporter"],
+      isDemo: true
+    };
+    
+    localStorage.setItem('civic_current_user', JSON.stringify(demoUser));
+    
+    setTimeout(() => {
+      setCurrentUser(demoUser);
+      setIssues(DEMO_ISSUES);
+      setLeaderboard(DEMO_LEADERBOARD);
+      setUserStats(DEMO_USER_STATS);
+      setShowLanding(false);
+      setIsDemoIntroPlaying(false);
+      setActiveTab('Dashboard');
+      setIsWalkthroughActive(true);
+    }, 2500);
+  };
+
+  const handleExitDemo = () => {
+    setIsWalkthroughActive(false);
+    localStorage.removeItem('civic_current_user');
+    setCurrentUser(null);
+    setIssues(INITIAL_ISSUES);
+    setLeaderboard(MOCK_LEADERBOARD);
+    setUserStats(MOCK_USER_STATS);
+    setShowLanding(true);
   };
 
   // Add points & handle potential level ups (Level is every 200 points)
@@ -468,6 +584,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    setIsWalkthroughActive(false);
     localStorage.removeItem('civic_current_user');
     setCurrentUser(null);
     setShowLanding(true);
@@ -524,6 +641,90 @@ export default function App() {
           */}
           <div className="w-full max-w-md md:rounded-[40px] md:shadow-2xl md:border-[12px] md:border-gray-900 overflow-hidden bg-white flex flex-col h-screen md:h-[840px] relative">
             
+            {currentUser?.isDemo && (
+              <div className="bg-amber-500 text-white text-[10px] font-black py-2 px-4 flex items-center justify-between z-[60] shadow-xs select-none shrink-0 uppercase tracking-wider">
+                <div className="flex items-center space-x-1.5">
+                  <span>🎭</span>
+                  <span>Demo Mode — Explore freely. No real data is saved.</span>
+                </div>
+                <button 
+                  onClick={handleExitDemo}
+                  className="p-1 hover:bg-amber-600 rounded transition cursor-pointer text-white"
+                  title="Exit Demo"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {isDemoIntroPlaying && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-gray-950 z-[100] flex flex-col items-center justify-center p-8 text-white select-none"
+              >
+                <div className="flex flex-col items-center space-y-6 max-w-xs text-center">
+                  <motion.div 
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.5 }}
+                    className="w-16 h-16 bg-[#1a73e8] rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20"
+                  >
+                    <div className="w-10 h-10 border-2 border-white rounded-lg flex items-center justify-center font-extrabold text-xl">
+                      C
+                    </div>
+                  </motion.div>
+
+                  <div className="space-y-2">
+                    <h2 className="text-[#1a73e8] font-black text-2xl tracking-tight">
+                      Civic<span className="text-white">AI</span>
+                    </h2>
+                    <p className="text-xs font-bold text-white min-h-[20px] tracking-wide">
+                      {typedText}
+                      <span className="animate-pulse">|</span>
+                    </p>
+                    <p className="text-[9px] font-bold text-gray-400 tracking-wider uppercase mt-1">
+                      Logging in as Rahul Sharma, Ward 12...
+                    </p>
+                  </div>
+
+                  <div className="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden mt-4 relative">
+                    <div 
+                      className="bg-[#1a73e8] h-full transition-all duration-100 ease-out"
+                      style={{ width: `${demoProgress}%` }}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            <AnimatePresence>
+              {authorityTransitionMessage && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 bg-slate-950 z-[120] flex flex-col items-center justify-center p-8 text-white select-none text-center"
+                >
+                  <div className="flex flex-col items-center space-y-4 max-w-xs">
+                    <div className="w-16 h-16 bg-amber-500 rounded-3xl flex items-center justify-center shadow-lg shadow-amber-500/20 text-3xl animate-bounce">
+                      🏛️
+                    </div>
+                    <div className="space-y-1.5">
+                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                        Transitioning View
+                      </h3>
+                      <p className="text-base font-black text-white leading-snug">
+                        {authorityTransitionMessage}
+                      </p>
+                    </div>
+                    <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mt-4" />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {showLanding ? (
               <LandingPage 
                 onStartReporting={() => {
@@ -534,28 +735,21 @@ export default function App() {
                   setAuthInitialRole('official');
                   setShowAuthModal(true);
                 }}
+                onTryDemo={handleTryDemo}
               />
             ) : currentUser?.role === 'authority' ? (
-              <AuthorityDashboard 
-                currentUser={currentUser}
-                issues={issues}
-                onLogout={handleLogout}
-                onUpdateIssueStatus={handleUpdateIssueStatus}
-                onAddComment={handleAuthorityAddComment}
-                triggerAlert={triggerAlert}
-              />
+               <AuthorityDashboard 
+                 currentUser={currentUser}
+                 issues={issues}
+                 onLogout={handleLogout}
+                 onUpdateIssueStatus={handleUpdateIssueStatus}
+                 onAddComment={handleAuthorityAddComment}
+                 triggerAlert={triggerAlert}
+               />
             ) : (
               <>
                 {/* Sticky Header */}
-                <Header demoMode={demoMode} setDemoMode={setDemoMode} />
-
-                {/* Guided Tour Controls & Highlights */}
-                <DemoTour 
-                  demoMode={demoMode} 
-                  setDemoMode={setDemoMode} 
-                  activeTab={activeTab} 
-                  setActiveTab={setActiveTab} 
-                />
+                <Header />
 
                 {/* Onboarding Screen for First-Time Users */}
                 <AnimatePresence>
@@ -751,6 +945,15 @@ export default function App() {
                     <span className="text-[10px] font-bold">Profile</span>
                   </button>
                 </nav>
+
+                {isWalkthroughActive && (
+                  <AutoDemoWalkthrough 
+                    activeTab={activeTab}
+                    setActiveTab={setActiveTab}
+                    onTakeControl={handleTakeControl}
+                    onSeeAuthorityPortal={handleSeeAuthorityPortal}
+                  />
+                )}
               </>
             )}
 

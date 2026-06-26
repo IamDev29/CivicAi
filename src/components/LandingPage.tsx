@@ -15,9 +15,10 @@ import {
 interface LandingPageProps {
   onStartReporting: () => void;
   onAuthorityLogin: () => void;
+  onTryDemo: () => void;
 }
 
-export default function LandingPage({ onStartReporting, onAuthorityLogin }: LandingPageProps) {
+export default function LandingPage({ onStartReporting, onAuthorityLogin, onTryDemo }: LandingPageProps) {
   // Social proof avatars (realistic local names and high-quality UI avatars)
   const citizens = [
     { name: 'Priyabrata', color: 'bg-blue-100 text-blue-800', initial: 'P' },
@@ -100,24 +101,38 @@ export default function LandingPage({ onStartReporting, onAuthorityLogin }: Land
         </div>
 
         {/* Side-by-Side Call To Action Buttons */}
-        <div className="grid grid-cols-2 gap-3.5 max-w-xs mx-auto w-full pt-1">
-          <button
-            onClick={onStartReporting}
-            id="btn-landing-report"
-            className="bg-[#1a73e8] hover:bg-blue-700 text-white py-3.5 px-3 rounded-2xl text-[10px] font-extrabold tracking-wider uppercase transition flex items-center justify-center space-x-1 shadow-md hover:shadow-lg cursor-pointer active:scale-95"
-          >
-            <span>Report Issue</span>
-            <ArrowRight className="w-3.5 h-3.5 stroke-[3px]" />
-          </button>
-          
-          <button
-            onClick={onAuthorityLogin}
-            id="btn-landing-login"
-            className="border-2 border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50 py-3.5 px-3 rounded-2xl text-[10px] font-extrabold tracking-wider uppercase transition flex items-center justify-center space-x-1 cursor-pointer active:scale-95 bg-white/70"
-          >
-            <Lock className="w-3 h-3 text-gray-400" />
-            <span>Authority Login</span>
-          </button>
+        <div className="space-y-3 max-w-xs mx-auto w-full pt-1">
+          <div className="grid grid-cols-2 gap-3.5">
+            <button
+              onClick={onStartReporting}
+              id="btn-landing-report"
+              className="bg-[#1a73e8] hover:bg-blue-700 text-white py-3.5 px-3 rounded-2xl text-[10px] font-extrabold tracking-wider uppercase transition flex items-center justify-center space-x-1 shadow-md hover:shadow-lg cursor-pointer active:scale-95"
+            >
+              <span>Report Issue</span>
+              <ArrowRight className="w-3.5 h-3.5 stroke-[3px]" />
+            </button>
+            
+            <button
+              onClick={onAuthorityLogin}
+              id="btn-landing-login"
+              className="border-2 border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50 py-3.5 px-3 rounded-2xl text-[10px] font-extrabold tracking-wider uppercase transition flex items-center justify-center space-x-1 cursor-pointer active:scale-95 bg-white/70"
+            >
+              <Lock className="w-3 h-3 text-gray-400" />
+              <span>Authority Login</span>
+            </button>
+          </div>
+
+          <div className="flex flex-col items-center space-y-1">
+            <button
+              onClick={onTryDemo}
+              id="btn-landing-demo"
+              className="w-full border border-dashed border-[#1a73e8] text-[#1a73e8] hover:bg-blue-50 py-2.5 px-3 rounded-xl text-[9px] font-black tracking-wider uppercase transition flex items-center justify-center space-x-1.5 cursor-pointer active:scale-95 bg-white"
+            >
+              <span className="text-[10px]">▶</span>
+              <span>Try Live Demo</span>
+            </button>
+            <span className="text-[8px] text-gray-400 font-bold tracking-wide">No signup needed</span>
+          </div>
         </div>
 
         {/* Live Counters Stats Row */}
