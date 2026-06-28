@@ -313,15 +313,50 @@ export default function App() {
         });
       }, 100);
 
+      let nextStreak = prev.streakCount ?? 5;
+      let nextStreakDays = [...(prev.streakDays ?? [true, true, true, true, true, false, false])];
+      let actionToday = prev.hasActionToday ?? false;
+      
+      if (pts > 0 && !actionToday) {
+        actionToday = true;
+        nextStreak += 1;
+        const currentDayIndex = (new Date().getDay() + 6) % 7; // Mon = 0, Sun = 6
+        nextStreakDays[currentDayIndex] = true;
+      }
+
       return {
         ...prev,
         points: newPoints,
         level: expectedLevel,
-        reportsCount: pts === 50 ? prev.reportsCount + 1 : prev.reportsCount
+        reportsCount: pts === 50 ? prev.reportsCount + 1 : prev.reportsCount,
+        hasActionToday: actionToday,
+        streakCount: nextStreak,
+        streakDays: nextStreakDays
       };
     });
 
     triggerAlert(`+${pts} Civic XP Added! ⚡`);
+  };
+
+  // Handle claiming weekly challenge points
+  const handleClaimChallenge = (id: string, points: number) => {
+    setUserStats(prev => {
+      const claimedList = prev.challengesClaimed || [];
+      if (claimedList.includes(id)) return prev;
+      
+      const nextClaimed = [...claimedList, id];
+      
+      // Delay points addition to avoid nested state update issues
+      setTimeout(() => {
+        handleAddPoints(points);
+        triggerAlert(`✓ Challenge claimed! Earned +${points} pts ⭐`);
+      }, 50);
+
+      return {
+        ...prev,
+        challengesClaimed: nextClaimed
+      };
+    });
   };
 
   // Handle a new issue submission from Report tab
@@ -342,7 +377,7 @@ export default function App() {
       });
       triggerAlert('Matched duplicate report! Your upvote has been merged automatically. 🔔');
     } else {
-      const trackingId = routeResult?.trackingId || `issue-${Date.now()}`;
+       const trackingId = routeResult?.trackingId || `issue-${Date.now()}`;
       const formattedIssue: CivicIssue = {
         id: trackingId,
         title: newIssueData.title || 'Untitled Issue',
@@ -353,9 +388,10 @@ export default function App() {
         gps: newIssueData.gps || null,
         photoUrl: newIssueData.photoUrl || 'https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&q=80&w=600',
         upvotes: 0,
-        status: 'Open',
+        status: userStats.isPriorityReporter ? 'Assigned' : 'Open',
         date: new Date().toISOString().split('T')[0],
         reporterName: currentReporterName,
+        isAnonymous: userStats.isAnonymousMode || false,
         comments: []
       };
 
@@ -865,6 +901,7 @@ export default function App() {
                           clearSelectedIssueFromMap={() => setSelectedIssueFromMap(null)}
                           onResolveIssue={handleResolveIssue}
                           onVerifyResolution={handleVerifyResolution}
+                          currentUserPoints={userStats.points}
                         />
                       )}
 
@@ -873,9 +910,14 @@ export default function App() {
                           userStats={userStats}
                           leaderboard={leaderboard}
                           userIssues={issues.filter(i => i.reporterName === currentReporterName)}
+                          allIssues={issues}
                           onSelectIssue={handleSelectIssueFromMap}
                           onSwitchTab={setActiveTab}
                           onLogout={handleLogout}
+                          onClaimChallenge={handleClaimChallenge}
+                          triggerAlert={triggerAlert}
+                          onUpdateUserStats={setUserStats}
+                          onUpdateIssues={setIssues}
                         />
                       )}
                     </motion.div>

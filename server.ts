@@ -1257,6 +1257,145 @@ Format the output strictly as a clean, highly formal government document. Begin 
   }
 });
 
+// API Endpoint for generating warm, motivating sentence of citizen impact
+app.post("/api/gemini/impact-summary", async (req, res) => {
+  try {
+    const { reported, resolved, peopleHelped, co2Saved, ward } = req.body;
+
+    const fallbackSentence = `Incredible job! Your dedication to Bhubaneswar has helped resolve ${resolved ?? 8} issues, saving ${co2Saved ?? 96}kg of CO2 and ensuring a safer environment for over ${peopleHelped ?? 340} of your neighbors in Ward ${ward ?? '12'}. You are a true local champion!`;
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.json({ summary: fallbackSentence });
+    }
+
+    try {
+      const promptText = `Generate one warm, motivating, and inspiring sentence summarizing this citizen's civic impact for a civic reporting app called CivicAI:
+- Issues reported: ${reported ?? 12}
+- Got resolved: ${resolved ?? 8}
+- People helped: ~${peopleHelped ?? 340} (estimated from upvotes and commuters)
+- CO2 saved: ${co2Saved ?? 96}kg (potholes fixed × 12kg per pothole avg)
+- Locality: Ward ${ward ?? '12'} Bhubaneswar, Odisha
+
+Keep the sentence warm, inspiring, concise, and focused on community heroics. Do not include any greeting, markdown asterisks, or conversational filler. Keep it to one powerful sentence under 25 words.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: promptText,
+      });
+
+      const summary = response.text?.trim() || fallbackSentence;
+      return res.json({ summary });
+    } catch (geminiError: any) {
+      console.warn("Impact Summary Gemini error, falling back to local fallback:", geminiError.message || geminiError);
+      return res.json({ summary: fallbackSentence });
+    }
+  } catch (error: any) {
+    console.error("Impact Summary Endpoint error:", error);
+    return res.status(500).json({ error: error.message || "Failed to generate impact summary." });
+  }
+});
+
+// API Endpoint for generating Ward Report Card
+app.post("/api/gemini/ward-report", async (req, res) => {
+  try {
+    const fallbackReport = `📊 *WARD 12 SAHEED NAGAR CIVIC PERFORMANCE REPORT* 📊\n\nBhubaneswar Municipal Corporation (BMC)\nReporting Period: June 2026\n\n✅ *Key Performance Metrics*:\n• Total Issues Logged: 73\n• Hyperlocal Resolution Rate: 61%\n• Avg. Time to Resolve: 4.2 Days\n• Critical Neighborhood Hazard: Potholes (Fastest tracked)\n\n💬 *Official Statement*:\n"Through the active vigilance of Saheed Nagar's dedicated citizens and rapid BMC routing heuristics, Ward 12 continues to lead Bhubaneswar's smart-city initiative. Together, we are creating safer, pothole-free streets."\n\n💪 *Proudly shared by an active CivicAI Citizen-Watchdog.*`;
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.json({ report: fallbackReport });
+    }
+
+    try {
+      const promptText = `Generate a public ward performance report for Ward 12 Saheed Nagar Bhubaneswar with these stats: 
+- 73 issues logged this month
+- 61% resolved
+- 4.2 days average resolution time
+- top issue: potholes.
+Make it sound like an official civic report that a citizen would proudly share on WhatsApp. Include emojis, clear headings, a short proud quote, and structured bullet points. Keep it concise, professional, and exciting under 180 words. Use plain text or WhatsApp style formatting (*bold*, _italic_). No markdown block quotes or asterisks unless WhatsApp format.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: promptText,
+      });
+
+      const report = response.text?.trim() || fallbackReport;
+      return res.json({ report });
+    } catch (geminiError: any) {
+      console.warn("Ward Report Gemini error, falling back to mock:", geminiError.message || geminiError);
+      return res.json({ report: fallbackReport });
+    }
+  } catch (error: any) {
+    console.error("Ward Report Endpoint error:", error);
+    return res.status(500).json({ error: error.message || "Failed to generate ward report." });
+  }
+});
+
+// API Endpoint for generating Civic Contribution Certificate
+app.post("/api/gemini/certificate", async (req, res) => {
+  try {
+    const { name, reportedCount, resolvedCount, peopleHelped, date } = req.body;
+    
+    const fallbackCertificate = `CERTIFICATE OF CIVIC EXCELLENCE\n\nThis is proudly awarded to\n\n${name || 'Ankit Kumar'}\n\nin recognition of outstanding service and proactive citizenship in Ward 12, Bhubaneswar.\n\nThrough vigilant community action, you have reported ${reportedCount || 12} hyperlocal safety hazards, of which ${resolvedCount || 8} were successfully resolved, directly improving safety and quality of life for an estimated ${peopleHelped || 340} residents.\n\nYour civic leadership, active reporting, and community-first spirit serve as a stellar example of municipal co-governance. Together, we make Bhubaneswar smarter, greener, and safer.\n\nAwarded on: ${date || 'June 28, 2026'}\nBhubaneswar Municipal Corporation (BMC) & CivicAI League`;
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.json({ certificate: fallbackCertificate });
+    }
+
+    try {
+      const promptText = `Write the text for an official-looking civic contribution certificate for ${name || 'Ankit Kumar'} who has reported ${reportedCount || 12} issues in Ward 12 Bhubaneswar, ${resolvedCount || 8} of which were resolved, helping an estimated ${peopleHelped || 340} residents. Date: ${date || 'June 28, 2026'}.
+Make it formal, warm, and achievement-worthy. It should look like structured text with headings, award details, and formal congratulatory wording. Limit to 150 words. Do not use markdown syntax, asterisks, or markdown styling since it will be styled inside a certificate-styled border. Use clean uppercase headings.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: promptText,
+      });
+
+      const certificate = response.text?.trim() || fallbackCertificate;
+      return res.json({ certificate });
+    } catch (geminiError: any) {
+      console.warn("Certificate Gemini error, falling back to mock:", geminiError.message || geminiError);
+      return res.json({ certificate: fallbackCertificate });
+    }
+  } catch (error: any) {
+    console.error("Certificate Endpoint error:", error);
+    return res.status(500).json({ error: error.message || "Failed to generate certificate." });
+  }
+});
+
+// API Endpoint for generating Monthly Ward Digest
+app.post("/api/gemini/monthly-digest", async (req, res) => {
+  try {
+    const { name, rank, ward } = req.body;
+    const fallbackDigest = `📰 *CIVIC HEALTH REPORT: MONTHLY WARD DIGEST* 📰\n\n*Ward*: ${ward || "Ward 12, Saheed Nagar, Bhubaneswar"}\n*Reporting Month*: June 2026\n*Delivered to*: ${name || "Dedicated Citizen"}\n\n🟢 *Issues Resolved This Month*:\n• *Potholes Restored*: 42 instances filled across Janpath and arterial links.\n• *Water Line Repairs*: 12 main line leakages sealed by the Water Board.\n• *Waste Clearances*: 18 public bins serviced and optimized with sensor tags.\n\n⚠️ *Upcoming Ward Risks & Notices*:\n• *Monsoon Prep*: Drainage dredging scheduled along Lane 4 from July 2-5. Expect localized water blocks.\n• *Streetlight Upgrade*: Faulty bulbs along Sector B are being replaced with smart LEDs next week.\n\n🏆 *Your Monthly Contribution Rank*:\n• *Current Rank*: #${rank || "4"} in ${ward || "Saheed Nagar"}\n• *Honor Stat*: Top 2% of contributors this quarter! You have saved other citizens an estimated 140+ hours of detours.\n\n*Thank you for being a Guardian of our streets!*`;
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.json({ report: fallbackDigest });
+    }
+
+    try {
+      const promptText = `Generate a high-quality "Monthly Ward Digest" summarizing the civic health of ${ward || "Ward 12 Saheed Nagar"}, Bhubaneswar, addressed to citizen "${name || "Dedicated Citizen"}" who is ranked #${rank || "4"} in the ward. 
+The digest must include:
+1. "Issues Resolved This Month" section (e.g. 42 repaired potholes, 12 water leaks, 18 garbage bins cleaned).
+2. "Upcoming Ward Risks" section (e.g. monsoon drainage dredging starting soon on lane 4, streetlight electrical inspections).
+3. "Your Contribution Rank" section where you praise their active rank #${rank || "4"} and say they are in the top 2% of contributors, saving fellow residents hours of delay.
+Make it sound highly informative, analytical, and professional, yet exciting. Keep it under 220 words. Use emojis, bold bullet points (*bold* or WhatsApp formatting), and structured paragraphs. No markdown blockquotes.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: promptText,
+      });
+
+      const report = response.text?.trim() || fallbackDigest;
+      return res.json({ report });
+    } catch (geminiError: any) {
+      console.warn("Monthly Digest Gemini error, falling back to mock:", geminiError.message || geminiError);
+      return res.json({ report: fallbackDigest });
+    }
+  } catch (error: any) {
+    console.error("Monthly Digest Endpoint error:", error);
+    return res.status(500).json({ error: error.message || "Failed to generate monthly digest." });
+  }
+});
+
 // Configure Vite or Static Serve
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {

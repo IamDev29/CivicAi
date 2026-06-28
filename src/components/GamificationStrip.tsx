@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Award, Trophy, TrendingUp } from 'lucide-react';
+import { Award, Trophy, TrendingUp, Coins } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface GamificationStripProps {
@@ -36,19 +36,19 @@ export default function GamificationStrip({
               Level <span className="text-[#1a73e8] font-extrabold">{level}</span>
             </span>
             <span className="text-gray-300">|</span>
-            <div className="flex items-center space-x-0.5 text-xs">
+            <div className="flex items-center space-x-1 text-xs">
               <AnimatePresence mode="popLayout">
                 <motion.span
                   key={points}
                   initial={{ y: -10, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   exit={{ y: 10, opacity: 0 }}
-                  className="text-gray-800 font-extrabold"
+                  className="text-gray-800 font-extrabold flex items-center"
                 >
-                  {points}
+                  🪙 {points}
                 </motion.span>
               </AnimatePresence>
-              <span className="text-gray-500 font-medium text-[10px] uppercase">pts</span>
+              <span className="text-gray-500 font-bold text-[9px] uppercase">CivicCoins</span>
             </div>
           </div>
 
@@ -77,8 +77,8 @@ export default function GamificationStrip({
               transition={{ duration: 0.5, ease: 'easeOut' }}
             />
           </div>
-          <span className="text-[10px] text-gray-500 font-extrabold tracking-wider whitespace-nowrap uppercase">
-            {points % pointsToNextLevel}/{pointsToNextLevel} to Lvl {level + 1}
+          <span className="text-[10px] text-gray-500 font-extrabold tracking-wider whitespace-nowrap uppercase flex items-center gap-0.5">
+            🪙 {points % pointsToNextLevel}/{pointsToNextLevel} to Lvl {level + 1}
           </span>
         </div>
       </div>

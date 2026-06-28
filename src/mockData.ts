@@ -116,9 +116,9 @@ export const INITIAL_ISSUES: CivicIssue[] = [
 
 export const MOCK_LEADERBOARD: LeaderboardUser[] = [
   { rank: 1, name: 'Ananya Sharma', points: 1450, badge: 'Civic Legend 👑' },
-  { rank: 2, name: 'Rajesh Hegde', points: 1200, badge: 'Super Validator ⚡' },
-  { rank: 3, name: 'Amit Patil', points: 950, badge: 'Pavement Guardian 🛡️' },
-  { rank: 4, name: 'You (Ankit Kumar)', points: 450, badge: 'Active Citizen ⭐', isCurrentUser: true },
+  { rank: 2, name: 'You (Ankit Kumar)', points: 1120, badge: 'City Hero 👑', isCurrentUser: true },
+  { rank: 3, name: 'Rajesh Hegde', points: 950, badge: 'Super Validator ⚡' },
+  { rank: 4, name: 'Amit Patil', points: 820, badge: 'Pavement Guardian 🛡️' },
   { rank: 5, name: 'Sunita Rao', points: 410, badge: 'Eco Warrior 🌿' },
   { rank: 6, name: 'Sandeep V', points: 320, badge: 'Street Watcher 👁️' },
   { rank: 7, name: 'Priya Nair', points: 290, badge: 'Pothole Patrol 🚨' },
@@ -129,14 +129,18 @@ export const MOCK_LEADERBOARD: LeaderboardUser[] = [
 
 export const MOCK_USER_STATS: UserStats = {
   name: 'Ankit Kumar',
-  points: 450,
-  badge: 'Active Citizen ⭐',
-  rank: 4,
-  reportsCount: 5,
-  resolvedCount: 3,
-  level: 3,
-  upvotesGiven: 12,
-  badges: ['First Reporter', 'Hero']
+  points: 1120,
+  badge: 'City Hero 👑',
+  rank: 2,
+  reportsCount: 12,
+  resolvedCount: 8,
+  level: 6,
+  upvotesGiven: 136,
+  badges: ['First Reporter', 'Watchdog', 'Hero', 'Validator', 'Evidence Master', 'Ward Protector'],
+  streakCount: 5,
+  streakDays: [true, true, true, true, true, false, false],
+  hasActionToday: false,
+  challengesClaimed: []
 };
 
 export const DEMO_ISSUES: CivicIssue[] = [
@@ -259,13 +263,17 @@ export const DEMO_LEADERBOARD: LeaderboardUser[] = [
 export const DEMO_USER_STATS: UserStats = {
   name: "Rahul Sharma",
   points: 340,
-  badge: "Watchdog 👁",
+  badge: "Watchdog 🐕",
   rank: 2,
-  reportsCount: 4,
-  resolvedCount: 1,
+  reportsCount: 12,
+  resolvedCount: 8,
   level: 2,
-  upvotesGiven: 0,
-  badges: ["Watchdog", "First Reporter"]
+  upvotesGiven: 136,
+  badges: ["First Reporter", "Watchdog", "Hero", "Validator", "Evidence Master", "Ward Protector"],
+  streakCount: 4,
+  streakDays: [true, true, true, true, false, false, false],
+  hasActionToday: false,
+  challengesClaimed: []
 };
 
 export const DEMO_AUTHORITY_ISSUES: CivicIssue[] = [

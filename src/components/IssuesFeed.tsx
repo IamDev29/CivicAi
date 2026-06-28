@@ -24,7 +24,9 @@ import {
   AlertTriangle,
   Share2,
   Camera,
-  Loader2
+  Loader2,
+  Send,
+  Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -38,7 +40,7 @@ import {
   Line, 
   CartesianGrid 
 } from 'recharts';
-import { CivicIssue, IssueCategory, IssueStatus } from '../types';
+import { CivicIssue, IssueCategory, IssueStatus, getReporterTier, UserStats } from '../types';
 import WardScorecard from './WardScorecard';
 
 interface IssuesFeedProps {
@@ -58,6 +60,9 @@ interface IssuesFeedProps {
     uploadedPhotoUrl: string
   ) => void;
   triggerAlert?: (msg: string) => void;
+  currentUserPoints?: number;
+  userStats?: UserStats;
+  onSendMessageToOfficer?: (issueId: string, messageText: string, sender: 'user' | 'officer') => void;
 }
 
 export default function IssuesFeed({
@@ -68,7 +73,10 @@ export default function IssuesFeed({
   clearSelectedIssueFromMap,
   onResolveIssue,
   onVerifyResolution,
-  triggerAlert
+  triggerAlert,
+  currentUserPoints,
+  userStats,
+  onSendMessageToOfficer
 }: IssuesFeedProps) {
   const [selectedCategory, setSelectedCategory] = useState<IssueCategory | 'All'>('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -77,6 +85,61 @@ export default function IssuesFeed({
   const [copiedIssueId, setCopiedIssueId] = useState<string | null>(null);
   const [isPostingComment, setIsPostingComment] = useState<{ [key: string]: boolean }>({});
   const [isFeedLoading, setIsFeedLoading] = useState(true);
+
+  // Direct Officer Messaging States
+  const [activeCardTab, setActiveCardTab] = useState<{ [issueId: string]: 'comments' | 'messages' }>({});
+  const [officerTyping, setOfficerTyping] = useState<{ [issueId: string]: boolean }>({});
+  const [msgInputText, setMsgInputText] = useState<{ [issueId: string]: string }>({});
+
+  const getIssueMessages = (issue: CivicIssue) => {
+    if (issue.messages && issue.messages.length > 0) {
+      return issue.messages;
+    }
+    const dept = issue.category === 'Pothole' || issue.category === 'Broken Footpath' ? 'PWD' : issue.category === 'Water Leakage' ? 'Water Board' : 'Municipal Corporation';
+    const officerName = issue.category === 'Pothole' ? 'Officer Mohanty' : issue.category === 'Water Leakage' ? 'Officer Patnaik' : 'Officer Rout';
+    return [
+      {
+        id: 'msg-initial',
+        sender: 'officer' as const,
+        text: `Hello, I'm ${officerName} from ${dept}. I've been assigned to review your report about this "${issue.category}". Feel free to message me directly here with any updates or questions.`,
+        date: issue.date
+      }
+    ];
+  };
+
+  const handleSendOfficerMessage = (issueId: string, e: React.FormEvent) => {
+    e.preventDefault();
+    const text = msgInputText[issueId];
+    if (!text || !text.trim() || !onSendMessageToOfficer) return;
+
+    // Send user message
+    onSendMessageToOfficer(issueId, text.trim(), 'user');
+    setMsgInputText(prev => ({ ...prev, [issueId]: '' }));
+
+    // Set typing state for 1.5 seconds
+    setOfficerTyping(prev => ({ ...prev, [issueId]: true }));
+
+    setTimeout(() => {
+      setOfficerTyping(prev => ({ ...prev, [issueId]: false }));
+      
+      const issue = issues.find(i => i.id === issueId);
+      const category = issue?.category || 'Other';
+      let responseText = "Thank you for the update. I have logged these details and passed them to our field team for active resolution.";
+      
+      const lowerText = text.toLowerCase();
+      if (lowerText.includes('when') || lowerText.includes('time') || lowerText.includes('how long')) {
+        responseText = `We are estimating a turnaround of ${category === 'Pothole' ? '5 days' : category === 'Water Leakage' ? '3 days' : '7 days'} for this issue. Rest assured, it is marked as a priority in our queue.`;
+      } else if (lowerText.includes('photo') || lowerText.includes('picture') || lowerText.includes('image')) {
+        responseText = "Perfect, thank you for providing the visual context. I have appended this to our maintenance crew's work order sheet.";
+      } else if (category === 'Pothole') {
+        responseText = "Received. I have scheduled our road repair vehicle to inspect and address this pothole with wet-mix macadam during the next dry shift.";
+      } else if (category === 'Water Leakage') {
+        responseText = "Got it. The plumbing division supervisor has been flagged to shut down the service main and patch this pipe joint as soon as possible.";
+      }
+
+      onSendMessageToOfficer(issueId, responseText, 'officer');
+    }, 1500);
+  };
 
   React.useEffect(() => {
     setIsFeedLoading(true);
@@ -204,8 +267,22 @@ export default function IssuesFeed({
     return matchesCategory && matchesSearch;
   });
 
-  // Sort: Newest first, with Open/In Progress taking precedence over Resolved
+  // Sort order:
+  // 1. Nominated issues (isNominated === true)
+  // 2. Spotlighted issues (isSpotlight === true)
+  // 3. Status (Open/In Progress before Resolved)
+  // 4. Newer first
   const sortedIssues = [...filteredIssues].sort((a, b) => {
+    const isNomA = (a as any).isNominated === true;
+    const isNomB = (b as any).isNominated === true;
+    if (isNomA && !isNomB) return -1;
+    if (!isNomA && isNomB) return 1;
+
+    const isSpotA = (a as any).isSpotlight === true;
+    const isSpotB = (b as any).isSpotlight === true;
+    if (isSpotA && !isSpotB) return -1;
+    if (!isSpotA && isSpotB) return 1;
+
     // If status is different, keep resolved at the bottom
     if (a.status === 'Resolved' && b.status !== 'Resolved') return 1;
     if (a.status !== 'Resolved' && b.status === 'Resolved') return -1;
@@ -471,16 +548,39 @@ export default function IssuesFeed({
         ) : sortedIssues.length > 0 ? (
           sortedIssues.map((issue) => {
             const isExpanded = expandedIssueId === issue.id;
+            const isCurrentUserIssue = issue.reporterName.includes('You') || (userStats && (issue.reporterName.toLowerCase().includes(userStats.name.toLowerCase()) || (userStats.name.toLowerCase() === 'rahul sharma' && issue.reporterName.toLowerCase().includes('rahul'))));
+            const cardAccentColor = isCurrentUserIssue && userStats?.accentColor ? userStats.accentColor : undefined;
 
             return (
               <motion.div
                 key={issue.id}
                 layout
                 id={`issue-card-${issue.id}`}
+                style={{ borderLeft: cardAccentColor ? `6px solid ${cardAccentColor}` : undefined }}
                 className={`bg-white rounded-xl overflow-hidden border transition-all ${
                   isExpanded ? 'border-gray-300 shadow-md ring-1 ring-gray-100' : 'border-gray-100 hover:border-gray-300 shadow-2xs'
                 }`}
               >
+                {/* Spotlight/Nominated Banners */}
+                {issue.isNominated && (
+                  <div className="bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-xs font-black py-1.5 px-4 flex items-center justify-between shadow-xs">
+                    <span className="flex items-center space-x-1.5">
+                      <span>🏆</span>
+                      <span className="uppercase tracking-wider">City Nominated Issue</span>
+                    </span>
+                    <span className="text-[9px] bg-white/20 px-2 py-0.5 rounded-full uppercase font-extrabold">Issue of the Month</span>
+                  </div>
+                )}
+                {issue.isSpotlight && !issue.isNominated && (
+                  <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-black py-1.5 px-4 flex items-center justify-between shadow-xs">
+                    <span className="flex items-center space-x-1.5">
+                      <span>⭐</span>
+                      <span className="uppercase tracking-wider">Community Spotlight</span>
+                    </span>
+                    <span className="text-[9px] bg-white/20 px-2 py-0.5 rounded-full uppercase font-extrabold">Boosted</span>
+                  </div>
+                )}
+
                 {/* Image & Badges Container */}
                 <div className="relative h-44 bg-gray-50 overflow-hidden">
                   <img
@@ -623,6 +723,21 @@ export default function IssuesFeed({
                         <Share2 className="w-3.5 h-3.5" />
                         <span>{copiedIssueId === issue.id ? 'Copied! 📋' : 'Share'}</span>
                       </button>
+
+                      {userStats?.hasDirectMessaging && (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedIssueId(issue.id);
+                            setActiveCardTab(prev => ({ ...prev, [issue.id]: 'messages' }));
+                          }}
+                          className="flex items-center space-x-1.5 text-blue-600 hover:text-blue-700 font-extrabold cursor-pointer"
+                          title="Message Assigned Officer directly"
+                        >
+                          <Send className="w-3.5 h-3.5 text-blue-500 fill-blue-100" />
+                          <span className="text-blue-700">Message Officer</span>
+                        </button>
+                      )}
                     </div>
 
                     {/* Expand Toggle */}
@@ -852,14 +967,48 @@ export default function IssuesFeed({
                           </div>
                         )}
 
-                        {/* Reporter details */}
-                        <div className="flex items-center space-x-2 text-xs text-gray-500 border-b border-gray-100 pb-2">
-                          <div className="bg-gray-200 p-1.5 rounded-full">
-                            <User className="w-3.5 h-3.5 text-gray-600" />
+                        {/* Reporter details with custom tier badge */}
+                        <div className="flex items-center justify-between text-xs text-gray-500 border-b border-gray-100 pb-2">
+                          <div className="flex items-center space-x-2">
+                            <div className="bg-gray-200 p-1.5 rounded-full">
+                              <User className="w-3.5 h-3.5 text-gray-600" />
+                            </div>
+                             <span>
+                              Reported by <strong className="inline-flex items-center gap-0.5">
+                                {issue.isAnonymous ? (
+                                  <span className="text-gray-500 italic">Anonymous Citizen</span>
+                                ) : (
+                                  <>
+                                    {issue.reporterName}
+                                    {(issue.reporterName.includes('You') || (userStats && (issue.reporterName.toLowerCase().includes(userStats.name.toLowerCase()) || (userStats.name.toLowerCase() === 'rahul sharma' && issue.reporterName.toLowerCase().includes('rahul'))))) && userStats?.hasVerifiedBadge && (
+                                      <span className="text-blue-500 font-extrabold text-xs" title="Verified Citizen">✓</span>
+                                    )}
+                                  </>
+                                )}
+                              </strong>
+                              {!issue.isAnonymous && (issue.reporterName.includes('You') || (userStats && (issue.reporterName.toLowerCase().includes(userStats.name.toLowerCase()) || (userStats.name.toLowerCase() === 'rahul sharma' && issue.reporterName.toLowerCase().includes('rahul'))))) && userStats?.customTitle && (
+                                <span className="block text-[10px] text-amber-600 font-bold mt-0.5">
+                                  🎗️ {userStats.customTitle}
+                                </span>
+                              )}
+                            </span>
                           </div>
-                          <span>
-                            Reported by <strong>{issue.reporterName}</strong> | Ward Citizen
-                          </span>
+                          {(() => {
+                            if (issue.isAnonymous) {
+                              return (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-extrabold border bg-gray-100 text-gray-500 border-gray-200">
+                                  👤 Anonymous
+                                </span>
+                              );
+                            }
+                            const tier = getReporterTier(issue.reporterName, currentUserPoints || 340);
+                            return (
+                              <span className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold border ${tier.badgeBg}`}>
+                                <span>{tier.icon}</span>
+                                <span>{tier.name}</span>
+                              </span>
+                            );
+                          })()}
                         </div>
 
                         {/* Tracking ID & Department Metadata */}
@@ -896,55 +1045,150 @@ export default function IssuesFeed({
                           </p>
                         </div>
 
-                        {/* Comment Threads Section */}
+                        {/* Tabbed Thread System */}
                         <div className="space-y-3">
-                          <h5 className="text-xs font-bold text-gray-800 flex items-center space-x-1">
-                            <MessageSquare className="w-3.5 h-3.5 text-gray-400" />
-                            <span>Community Validation Thread ({issue.comments.length})</span>
-                          </h5>
-
-                          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                            {issue.comments.map((comment) => (
-                              <div key={comment.id} className="bg-white rounded-lg p-2.5 border border-gray-100 text-xs shadow-3xs space-y-1">
-                                <div className="flex items-center justify-between text-gray-500 font-medium">
-                                  <span className="font-extrabold text-[#1a73e8] flex items-center space-x-1">
-                                    <span>{comment.userName}</span>
-                                    {comment.userName.includes('System') || comment.userName.includes('Marshal') ? (
-                                      <span className="bg-green-100 text-green-700 font-extrabold px-1.5 py-0.2 rounded text-[8px] uppercase tracking-wider">Official</span>
-                                    ) : null}
-                                  </span>
-                                  <span className="text-[9px]">{comment.date}</span>
-                                </div>
-                                <p className="text-gray-700 leading-normal">{comment.text}</p>
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Submit New Comment Form */}
-                          <form onSubmit={(e) => handlePostComment(issue.id, e)} className="flex space-x-2 mt-2">
-                            <input
-                              type="text"
-                              placeholder="Validate this issue or add a comment..."
-                              disabled={isPostingComment[issue.id]}
-                              value={newCommentTexts[issue.id] || ''}
-                              onChange={(e) => setNewCommentTexts(prev => ({
-                                ...prev,
-                                [issue.id]: e.target.value
-                              }))}
-                              className="flex-1 text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-[#1a73e8] disabled:opacity-60"
-                            />
+                          {/* Tab Switcher Headers */}
+                          <div className="flex space-x-3 border-b border-gray-200 pb-1.5">
                             <button
-                              type="submit"
-                              disabled={isPostingComment[issue.id] || !(newCommentTexts[issue.id]?.trim())}
-                              className="bg-gray-900 hover:bg-gray-800 text-white px-3.5 py-2 rounded-lg text-xs font-bold transition shrink-0 cursor-pointer disabled:opacity-50 flex items-center justify-center min-w-[60px]"
+                              type="button"
+                              onClick={() => setActiveCardTab(prev => ({ ...prev, [issue.id]: 'comments' }))}
+                              className={`text-xs font-black pb-1.5 border-b-2 transition-all cursor-pointer flex items-center space-x-1 ${
+                                (activeCardTab[issue.id] || 'comments') === 'comments'
+                                  ? 'border-blue-600 text-blue-700'
+                                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                              }`}
                             >
-                              {isPostingComment[issue.id] ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                "Post"
+                              <MessageSquare className="w-3.5 h-3.5" />
+                              <span>Community validation ({issue.comments.length})</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (userStats?.hasDirectMessaging) {
+                                  setActiveCardTab(prev => ({ ...prev, [issue.id]: 'messages' }));
+                                } else {
+                                  if (triggerAlert) {
+                                    triggerAlert("🔒 Purchase 'Direct Department Messaging' in the CivicCoins Store to unlock this feature!");
+                                  }
+                                }
+                              }}
+                              className={`text-xs font-black pb-1.5 border-b-2 transition-all cursor-pointer flex items-center space-x-1.5 relative ${
+                                (activeCardTab[issue.id] || 'comments') === 'messages'
+                                  ? 'border-blue-600 text-blue-700'
+                                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                              }`}
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                              <span>Direct Officer Chat</span>
+                              {!userStats?.hasDirectMessaging && (
+                                <span className="text-[8px] bg-amber-500 text-white font-black px-1.5 py-0.2 rounded-full scale-90 ml-1">
+                                  🔒 Locked
+                                </span>
                               )}
                             </button>
-                          </form>
+                          </div>
+
+                          {(activeCardTab[issue.id] || 'comments') === 'comments' ? (
+                            <div className="space-y-3">
+                              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                {issue.comments.map((comment) => (
+                                  <div key={comment.id} className="bg-white rounded-lg p-2.5 border border-gray-100 text-xs shadow-3xs space-y-1">
+                                    <div className="flex items-center justify-between text-gray-500 font-medium">
+                                      <span className="font-extrabold text-[#1a73e8] flex items-center space-x-1">
+                                        <span>{comment.userName}</span>
+                                        {comment.userName.includes('System') || comment.userName.includes('Marshal') ? (
+                                          <span className="bg-green-100 text-green-700 font-extrabold px-1.5 py-0.2 rounded text-[8px] uppercase tracking-wider">Official</span>
+                                        ) : null}
+                                      </span>
+                                      <span className="text-[9px]">{comment.date}</span>
+                                    </div>
+                                    <p className="text-gray-700 leading-normal">{comment.text}</p>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Submit New Comment Form */}
+                              <form onSubmit={(e) => handlePostComment(issue.id, e)} className="flex space-x-2 mt-2">
+                                <input
+                                  type="text"
+                                  placeholder="Validate this issue or add a comment..."
+                                  disabled={isPostingComment[issue.id]}
+                                  value={newCommentTexts[issue.id] || ''}
+                                  onChange={(e) => setNewCommentTexts(prev => ({
+                                    ...prev,
+                                    [issue.id]: e.target.value
+                                  }))}
+                                  className="flex-1 text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-[#1a73e8] disabled:opacity-60"
+                                />
+                                <button
+                                  type="submit"
+                                  disabled={isPostingComment[issue.id] || !(newCommentTexts[issue.id]?.trim())}
+                                  className="bg-gray-900 hover:bg-gray-800 text-white px-3.5 py-2 rounded-lg text-xs font-bold transition shrink-0 cursor-pointer disabled:opacity-50 flex items-center justify-center min-w-[60px]"
+                                >
+                                  {isPostingComment[issue.id] ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    "Post"
+                                  )}
+                                </button>
+                              </form>
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              {/* Direct Officer Chat Thread */}
+                              <div className="space-y-2 max-h-52 overflow-y-auto pr-1 py-1 flex flex-col">
+                                {getIssueMessages(issue).map((msg) => {
+                                  const isUser = msg.sender === 'user';
+                                  return (
+                                    <div 
+                                      key={msg.id} 
+                                      className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs shadow-3xs mb-1.5 ${
+                                        isUser 
+                                          ? 'bg-blue-600 text-white self-end rounded-tr-none' 
+                                          : 'bg-white border border-gray-150 text-gray-800 self-start rounded-tl-none'
+                                      }`}
+                                    >
+                                      <div className="flex items-center justify-between gap-4 text-[9px] font-bold mb-0.5 opacity-75">
+                                        <span>{isUser ? 'You' : (issue.category === 'Pothole' ? 'Officer Mohanty' : issue.category === 'Water Leakage' ? 'Officer Patnaik' : 'Officer Rout')}</span>
+                                        <span>{msg.date}</span>
+                                      </div>
+                                      <p className="leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                                    </div>
+                                  );
+                                })}
+
+                                {officerTyping[issue.id] && (
+                                  <div className="bg-white border border-gray-150 text-gray-500 self-start rounded-2xl rounded-tl-none px-3 py-2 text-[11px] shadow-3xs flex items-center space-x-1.5 mb-1.5">
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />
+                                    <span className="font-bold">Officer is typing response...</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Send Message Form */}
+                              <form onSubmit={(e) => handleSendOfficerMessage(issue.id, e)} className="flex space-x-2 mt-2">
+                                <input
+                                  type="text"
+                                  placeholder="Type direct message to the assigned officer..."
+                                  disabled={officerTyping[issue.id]}
+                                  value={msgInputText[issue.id] || ''}
+                                  onChange={(e) => setMsgInputText(prev => ({
+                                    ...prev,
+                                    [issue.id]: e.target.value
+                                  }))}
+                                  className="flex-1 text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-[#1a73e8] disabled:opacity-60"
+                                />
+                                <button
+                                  type="submit"
+                                  disabled={officerTyping[issue.id] || !(msgInputText[issue.id]?.trim())}
+                                  className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-lg text-xs font-bold transition shrink-0 cursor-pointer disabled:opacity-50 flex items-center justify-center min-w-[60px]"
+                                >
+                                  <Send className="w-3.5 h-3.5" />
+                                </button>
+                              </form>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </motion.div>
